@@ -6,62 +6,69 @@ import (
 	"github.com/codetesla51/golexer/golexer"
 )
 
-func testLetStatement(t *testing.T, s Statement, name string) bool {
-	if s.TokenLiteral() != "let" {
-		t.Errorf("s.TokenLiteral not 'let'. got=%q", s.TokenLiteral())
-		return false
+func TestParser(t *testing.T) {
+	input := "5 + 3"
+	l := golexer.NewLexer(input)
+	p := NewParser(l)
+	program := p.Parse()
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser has %d errors", len(p.Errors()))
 	}
-	letStmt, ok := s.(*LetStatement)
+	if program == nil {
+		t.Fatalf("Parse() returned nil")
+	}
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statements. got=%d", len(program.Statements))
+	}
+	stmt, ok := program.Statements[0].(*ExpressionStatement)
 	if !ok {
-		t.Errorf("s not *LetStatement. got=%T", s)
-		return false
+		t.Fatalf("program.Statements[0] is not *ExpressionStatement. got=%T", program.Statements[0])
 	}
-	if letStmt.Name.Value != name {
-		t.Errorf("letStmt.Name.Value not '%s'. got=%s", name, letStmt.Name.Value)
-		return false
+	exp, ok := stmt.Expression.(*InfixExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not *InfixExpression. got=%T", stmt.Expression)
 	}
-	if letStmt.Name.TokenLiteral() != name {
-		t.Errorf("letStmt.Name.TokenLiteral() not '%s'. got=%s", name, letStmt.Name.TokenLiteral())
-		return false
+	if exp.Operator != "+" {
+		t.Fatalf("exp.Operator is not '+'. got=%q", exp.Operator)
 	}
-	return true
+	if exp.Left.String() != "5" {
+		t.Fatalf("exp.Left.String() is not '5'. got=%q", exp.Left.String())
+	}
+	if exp.Right.String() != "3" {
+		t.Fatalf("exp.Right.String() is not '3'. got=%q", exp.Right.String())
+	}
 }
-func checkParserErrors(t *testing.T, p *Parser) {
-	errors := p.Errors()
-	if len(errors) == 0 {
-		return
+func TestParserErrors(t *testing.T) {
+	input := "5 +"
+	l := golexer.NewLexer(input)
+	p := NewParser(l)
+	program := p.Parse()
+	if len(p.Errors()) == 0 {
+		t.Fatalf("parser should have errors but got none")
 	}
-	t.Errorf("parser has %d errors", len(errors))
-	for _, msg := range errors {
-		t.Errorf("parser error: %q", msg)
+	if program != nil {
+		t.Fatalf("Parse() should return nil when there are errors. got=%v", program)
 	}
-	t.FailNow()
 }
-
-func TestLetStatements(t *testing.T) {
-	input := `
-	let x = 5;
-	let y = 10;
-	let foobar = 838383;
-	`
-	lexer := golexer.NewLexer(input)
-	parser := NewParser(lexer)
-	program := parser.Parse()
-	checkParserErrors(t, parser)
-	if len(program.Statements) != 3 {
-		t.Fatalf("program.Statements does not contain 3 statements. got=%d", len(program.Statements))
-	}
+func TestParserPrecedence(t *testing.T) {
 	tests := []struct {
-		expectedIdentifier string
+		input    string
+		expected string
 	}{
-		{"x"},
-		{"y"},
-		{"foobar"},
+		{"5 + 3", "(5 + 3)"},
+		{"5 + 3 * 2", "(5 + (3 * 2))"},
+		{"5 * 3 + 2", "((5 * 3) + 2)"},
+		{"(5 + 3) * 2", "((5 + 3) * 2)"},
 	}
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-		if !testLetStatement(t, stmt, tt.expectedIdentifier) {
-			return
+	for _, tt := range tests {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("parser has %d errors", len(p.Errors()))
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("expected=%q, got=%q", tt.expected, program.String())
 		}
 	}
 }

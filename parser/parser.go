@@ -8,6 +8,7 @@ import (
 	"github.com/codetesla51/golexer/golexer"
 )
 
+// Operator precedence levels for expression parsing.
 const (
 	_ int = iota
 	LOWEST
@@ -19,14 +20,19 @@ const (
 	CALL
 )
 
+// Node is the base interface for all AST nodes.
 type Node interface {
 	TokenLiteral() string
 	String() string
 }
+
+// Statement represents a statement in the AST.
 type Statement interface {
 	Node
 	statmentNode()
 }
+
+// Expression represents an expression in the AST.
 type Expression interface {
 	Node
 	expressionNode()
@@ -87,7 +93,6 @@ func (p *Program) TokenLiteral() string {
 }
 func (p *Program) String() string {
 	var out strings.Builder
-	fmt.Println("all statements")
 	for _, s := range p.Statements {
 		out.WriteString(s.String())
 	}
@@ -148,6 +153,7 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
+// Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
 	lexer  *golexer.Lexer
 	errors []string
@@ -202,6 +208,7 @@ func (p *Parser) Errors() []string {
 	return p.errors
 }
 
+// NewParser creates and initializes a new Parser with the given lexer.
 func NewParser(lexer *golexer.Lexer) *Parser {
 	p := &Parser{
 		lexer:  lexer,
@@ -232,6 +239,9 @@ func (p *Parser) registerPrefix(tokenType golexer.TokenType, fn PrefixParsefn) {
 func (p *Parser) registerInfix(tokenType golexer.TokenType, fn InfixParsefn) {
 	p.infixParseFns[tokenType] = fn
 }
+
+// Parse parses the input tokens into a Program AST node.
+// Returns nil if parsing encounters any errors.
 func (p *Parser) Parse() *Program {
 	program := &Program{}
 	program.Statements = []Statement{}
@@ -241,6 +251,9 @@ func (p *Parser) Parse() *Program {
 			program.Statements = append(program.Statements, stmt)
 		}
 		p.nextToken()
+	}
+	if len(p.errors) > 0 {
+		return nil
 	}
 	return program
 }
@@ -289,9 +302,8 @@ func (p *Parser) parseReturnStatment() *ReturnStatement {
 }
 func (p *Parser) parseExpressionStatment() *ExpressionStatement {
 	stmt := &ExpressionStatement{Token: p.curToken}
-	p.nextToken()
 	stmt.Expression = p.parseExpression(LOWEST)
-	if !p.peekTokenIs(golexer.SEMICOLON) {
+	if p.peekTokenIs(golexer.SEMICOLON) {
 		p.nextToken()
 	}
 	return stmt

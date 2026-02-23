@@ -38,9 +38,16 @@ func main() {
 	// }
 	// fmt.Println(prog.String())
 
-	input := `let x = 0.5 + 3; return y; foobar + y;`
+	input := "5 + 3"
 	lexer := golexer.NewLexer(input)
 	parser := parser.NewParser(lexer)
+	if len(parser.Errors()) != 0 {
+		fmt.Printf("parser has %d errors\n", len(parser.Errors()))
+		for _, err := range parser.Errors() {
+			fmt.Printf("\t%s\n", err)
+		}
+		return
+	}
 	program := parser.Parse()
 	fmt.Println(program.String())
 }
