@@ -255,13 +255,16 @@ func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
 	var out strings.Builder
 	out.WriteString("{")
-	for _, s := range bs.Statements {
-		out.WriteString(s.String())
+	for i, s := range bs.Statements {
+		str := s.String()
+		out.WriteString(str)
+		if i < len(bs.Statements)-1 && !strings.HasSuffix(str, ";") {
+			out.WriteString(";")
+		}
 	}
 	out.WriteString("}")
 	return out.String()
 }
-
 func (es *ExpressionStatement) statmentNode()        {}
 func (es *ExpressionStatement) expressionNode()      {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
@@ -659,9 +662,7 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
-		if p.peekTokenIs(golexer.SEMICOLON) {
-			p.nextToken()
-		}
+
 		p.nextToken()
 
 	}

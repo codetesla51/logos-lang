@@ -751,8 +751,21 @@ func TestForStatements(t *testing.T) {
 		input    string
 		expected string
 	}{
+		//todo make surre tests pass
 		{"let i = 0; for (i < 5) { i = i + 1; }", "let i = 0;for((i < 5)){(i = (i + 1))}"},
 		{"let x = 10; for (x > 0) { x = x - 1; }", "let x = 10;for((x > 0)){(x = (x - 1))}"},
+		// Compound assignments in loops
+		{"let i = 0; for (i < 10) { i += 1; }", "let i = 0;for((i < 10)){(i += 1)}"},
+		{"let x = 1; for (x < 100) { x *= 2; }", "let x = 1;for((x < 100)){(x *= 2)}"},
+		{"let x = 100; for (x > 0) { x /= 2; }", "let x = 100;for((x > 0)){(x /= 2)}"},
+		// Multiple statements in loop
+		{"let i = 0; for (i < 5) { i = i + 1; print(i); }", "let i = 0;for((i < 5)){(i = (i + 1));print(i)}"},
+		{"let i = 0; for (i < 3) { print(i); i = i + 1; }", "let i = 0;for((i < 3)){print(i);(i = (i + 1))}"},
+		// Nested loops with assignment
+		{"let i = 0; for (i < 2) { let j = 0; for (j < 2) { j = j + 1; } i = i + 1; }", "let i = 0;for((i < 2)){let j = 0;for((j < 2)){(j = (j + 1))};(i = (i + 1))}"},
+		//Assignment with expressions
+		{"let i = 0; for (i < 10) { i = i + 2 * 3; }", "let i = 0;for((i < 10)){(i = (i + (2 * 3)))}"},
+		{"let x = 1; for (x < 100) { x = x + x; }", "let x = 1;for((x < 100)){(x = (x + x))}"},
 	}
 	for _, tt := range testCases {
 		l := golexer.NewLexer(tt.input)
