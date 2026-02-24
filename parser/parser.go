@@ -88,6 +88,11 @@ type IfExpression struct {
 	Consequence *BlockStatement
 	Alternative *BlockStatement
 }
+type ForStatement struct {
+	Token     golexer.Token
+	Condition Expression // Optional: condition expression
+	Body      *BlockStatement
+}
 type BlockStatement struct {
 	Token      golexer.Token
 	Statements []Statement
@@ -107,10 +112,32 @@ type StringLiteral struct {
 	Value string
 	IsRaw bool
 }
+type ArrayLiteral struct {
+	Token    golexer.Token
+	Elements []Expression
+}
+type ArrayIndexExpression struct {
+	Token golexer.Token
+	Array Expression
+	Index Expression
+}
+type BreakStatement struct {
+	Token golexer.Token
+}
+type ContinueStatement struct {
+	Token golexer.Token
+}
+
 type PrefixParsefn func() Expression
 type InfixParsefn func(Expression) Expression
 
 var precedences = map[golexer.TokenType]int{
+	golexer.ASSIGN:           LOWEST,
+	golexer.PLUS_ASSIGN:      LOWEST,
+	golexer.MINUS_ASSIGN:     LOWEST,
+	golexer.MULTIPLY_ASSIGN:  LOWEST,
+	golexer.DIVIDE_ASSIGN:    LOWEST,
+	golexer.MODULUS_ASSIGN:   LOWEST,
 	golexer.EQL:              EQUALS,
 	golexer.NOT_EQL:          EQUALS,
 	golexer.LESS_THAN:        LESSGREATER,
@@ -124,6 +151,8 @@ var precedences = map[golexer.TokenType]int{
 	golexer.GREATER_THAN_EQL: LESSGREATER,
 	golexer.LESS_THAN_EQL:    LESSGREATER,
 	golexer.LPAREN:           CALL,
+	golexer.LBRACKET:         CALL,
+	golexer.MODULUS:          PRODUCT,
 }
 
 func (p *Program) TokenLiteral() string {
@@ -208,6 +237,19 @@ func (ie *IfExpression) String() string {
 	return out.String()
 }
 
+func (fs *ForStatement) statmentNode()        {}
+func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
+func (fs *ForStatement) String() string {
+	var out strings.Builder
+	out.WriteString(fs.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(fs.Condition.String())
+	out.WriteString(")")
+
+	out.WriteString(fs.Body.String())
+	return out.String()
+}
+
 func (bs *BlockStatement) statmentNode()        {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
@@ -275,6 +317,41 @@ func (sl *StringLiteral) String() string {
 	out.WriteString(sl.Value)
 	out.WriteString("\"")
 	return out.String()
+}
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var out strings.Builder
+	out.WriteString("[")
+	for i, elem := range al.Elements {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(elem.String())
+	}
+	out.WriteString("]")
+	return out.String()
+}
+func (ae *ArrayIndexExpression) expressionNode()      {}
+func (ae *ArrayIndexExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *ArrayIndexExpression) String() string {
+	var out strings.Builder
+	out.WriteString("(")
+	out.WriteString(ae.Array.String())
+	out.WriteString("[")
+	out.WriteString(ae.Index.String())
+	out.WriteString("])")
+	return out.String()
+}
+func (bs *BreakStatement) statmentNode()        {}
+func (bs *BreakStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BreakStatement) String() string {
+	return bs.TokenLiteral() + ";"
+}
+func (cs *ContinueStatement) statmentNode()        {}
+func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
+func (cs *ContinueStatement) String() string {
+	return cs.TokenLiteral() + ";"
 }
 
 // Parser implements a Pratt parser for parsing tokens into an AST.
@@ -369,6 +446,7 @@ func NewParser(lexer *golexer.Lexer) *Parser {
 	p.registerInfix(golexer.MINUS, p.parseInfixExpression)
 	p.registerInfix(golexer.MULTIPLY, p.parseInfixExpression)
 	p.registerInfix(golexer.DIVIDE, p.parseInfixExpression)
+	p.registerInfix(golexer.MODULUS, p.parseInfixExpression)
 	p.registerInfix(golexer.EQL, p.parseInfixExpression)
 	p.registerInfix(golexer.NOT_EQL, p.parseInfixExpression)
 	p.registerInfix(golexer.LESS_THAN, p.parseInfixExpression)
@@ -377,11 +455,19 @@ func NewParser(lexer *golexer.Lexer) *Parser {
 	p.registerInfix(golexer.LESS_THAN_EQL, p.parseInfixExpression)
 	p.registerInfix(golexer.AND, p.parseInfixExpression)
 	p.registerInfix(golexer.OR, p.parseInfixExpression)
+	p.registerInfix(golexer.LBRACKET, p.parseArrayIndexExpression)
+	p.registerInfix(golexer.ASSIGN, p.parseInfixExpression)
+	p.registerInfix(golexer.PLUS_ASSIGN, p.parseInfixExpression)
+	p.registerInfix(golexer.MINUS_ASSIGN, p.parseInfixExpression)
+	p.registerInfix(golexer.MULTIPLY_ASSIGN, p.parseInfixExpression)
+	p.registerInfix(golexer.DIVIDE_ASSIGN, p.parseInfixExpression)
+	p.registerInfix(golexer.MODULUS_ASSIGN, p.parseInfixExpression)
 	// prefix expressions
 	p.registerPrefix(golexer.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(golexer.BANG, p.parsePrefixExpression)
 	p.registerPrefix(golexer.STRING, p.parserStringLiteral)
 	p.registerPrefix(golexer.BACKTICK_STRING, p.parserStringLiteral)
+
 	// boolean literals
 	p.registerPrefix(golexer.TRUE, p.parseBoolean)
 	p.registerPrefix(golexer.FALSE, p.parseBoolean)
@@ -391,6 +477,10 @@ func NewParser(lexer *golexer.Lexer) *Parser {
 	p.registerPrefix(golexer.FN, func() Expression { return p.parseFunctionLiteral() })
 	// function calls
 	p.registerInfix(golexer.LPAREN, p.parseFunctionCall)
+	//arrays
+	p.registerPrefix(golexer.LBRACKET, func() Expression {
+		return p.parseArrayLiteral()
+	})
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -425,6 +515,8 @@ func (p *Parser) parseStatment() Statement {
 		return p.parseLetStatment()
 	case golexer.RETURN:
 		return p.parseReturnStatment()
+	case golexer.FOR:
+		return p.parseForStatement()
 	case golexer.IDENT:
 		return p.parseExpressionStatment()
 	case golexer.NUMBER:
@@ -438,6 +530,14 @@ func (p *Parser) parseStatment() Statement {
 		return &ExpressionStatement{
 			Token:      p.curToken,
 			Expression: p.parseFunctionLiteral(),
+		}
+	case golexer.CONTINUE:
+		return &ContinueStatement{
+			Token: p.curToken,
+		}
+	case golexer.BREAK:
+		return &BreakStatement{
+			Token: p.curToken,
 		}
 	default:
 		return p.parseExpressionStatment()
@@ -477,6 +577,18 @@ func (p *Parser) parseReturnStatment() *ReturnStatement {
 func (p *Parser) parseExpressionStatment() *ExpressionStatement {
 	stmt := &ExpressionStatement{Token: p.curToken}
 	stmt.Expression = p.parseExpression(LOWEST)
+	if p.peekTokenIs(golexer.ASSIGN) || p.peekTokenIs(golexer.PLUS_ASSIGN) || p.peekTokenIs(golexer.MINUS_ASSIGN) || p.peekTokenIs(golexer.MULTIPLY_ASSIGN) || p.peekTokenIs(golexer.DIVIDE_ASSIGN) || p.peekTokenIs(golexer.MODULUS_ASSIGN) {
+		p.nextToken()
+		operator := p.curToken.Literal
+		p.nextToken()
+		right := p.parseExpression(LOWEST)
+		stmt.Expression = &InfixExpression{
+			Token:    p.curToken,
+			Left:     stmt.Expression,
+			Operator: operator,
+			Right:    right,
+		}
+	}
 	if p.peekTokenIs(golexer.SEMICOLON) {
 		p.nextToken()
 	}
@@ -511,6 +623,31 @@ func (p *Parser) parseIfExpression() *IfExpression {
 	}
 	return stmt
 }
+
+func (p *Parser) parseForStatement() *ForStatement {
+	stmt := &ForStatement{Token: p.curToken}
+	if !p.expectPeek(golexer.LPAREN) {
+		p.synchronize()
+		return nil
+	}
+	p.nextToken()
+	if p.curTokenIs(golexer.RPAREN) {
+		p.nextToken()
+	} else {
+		stmt.Condition = p.parseExpression(LOWEST)
+		if !p.expectPeek(golexer.RPAREN) {
+			p.synchronize()
+			return nil
+		}
+		p.nextToken()
+	}
+	if !p.curTokenIs(golexer.LBRACE) {
+		p.synchronize()
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
+	return stmt
+}
 func (p *Parser) parseBlockStatement() *BlockStatement {
 	block := &BlockStatement{
 		Token: p.curToken,
@@ -522,7 +659,11 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
+		if p.peekTokenIs(golexer.SEMICOLON) {
+			p.nextToken()
+		}
 		p.nextToken()
+
 	}
 	return block
 }
@@ -534,6 +675,7 @@ func (p *Parser) parseExpression(precedence int) Expression {
 		return nil
 	}
 	leftExp := prefix()
+
 	for !p.peekTokenIs(golexer.SEMICOLON) && precedence < p.peekPrecedence() {
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
@@ -670,5 +812,43 @@ func (p *Parser) parseCallArguments() []Expression {
 }
 func (p *Parser) parserStringLiteral() Expression {
 	slit := &StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+	if p.curToken.Type == golexer.BACKTICK_STRING {
+		slit.IsRaw = true
+	}
 	return slit
+}
+func (p *Parser) parseArrayLiteral() Expression {
+	arr := &ArrayLiteral{Token: p.curToken}
+	arr.Elements = p.parseArrayElements()
+	return arr
+}
+
+func (p *Parser) parseArrayElements() []Expression {
+	arrElements := []Expression{}
+	if p.peekTokenIs(golexer.RBRACKET) {
+		p.nextToken()
+		return arrElements
+	}
+	p.nextToken()
+	arrElements = append(arrElements, p.parseExpression(LOWEST))
+	for p.peekTokenIs(golexer.COMMA) {
+		p.nextToken()
+		p.nextToken()
+		arrElements = append(arrElements, p.parseExpression(LOWEST))
+	}
+	if !p.expectPeek(golexer.RBRACKET) {
+		p.synchronize()
+		return nil
+	}
+	return arrElements
+}
+func (p *Parser) parseArrayIndexExpression(array Expression) Expression {
+	exp := &ArrayIndexExpression{Token: p.curToken, Array: array}
+	p.nextToken()
+	exp.Index = p.parseExpression(LOWEST)
+	if !p.expectPeek(golexer.RBRACKET) {
+		p.synchronize()
+		return nil
+	}
+	return exp
 }

@@ -543,6 +543,7 @@ func TestFunctionCalls(t *testing.T) {
 		{"len(arr)", "len(arr)"},
 		{"print(x)", "print(x)"},
 		{"say(\"hello\")", "say(\"hello\")"},
+		{"say(`raw string`)", "say(`raw string`)"},
 
 		// Function calls with boolean arguments
 		{"if_else(true, 1, 2)", "if_else(true, 1, 2)"},
@@ -589,6 +590,169 @@ func TestFunctionCalls(t *testing.T) {
 		{"f(-x)", "f((-x))"},
 		{"g(!x)", "g((!x))"},
 		{"h(-a, !b)", "h((-a), (!b))"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestArrayLiterals(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"[1, 2, 3]", "[1, 2, 3]"},
+		{"[]", "[]"},
+		{"[1 + 2, 3 * 4]", "[(1 + 2), (3 * 4)]"},
+		{"[true, false, true]", "[true, false, true]"},
+		{"[fn(x) { x }, fn(y) { y }]", "[fn(x){x}, fn(y){y}]"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestModuloOperator(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		// Basic modulo
+		{"5 % 2", "(5 % 2)"},
+		{"10 % 3", "(10 % 3)"},
+		{"x % y", "(x % y)"},
+
+		// Modulo with expressions
+		{"a + b % c", "(a + (b % c))"},
+		{"a % b + c", "((a % b) + c)"},
+		{"a * b % c", "((a * b) % c)"},
+		{"a % b * c", "((a % b) * c)"},
+
+		// Modulo in comparison
+		{"a % b == 0", "((a % b) == 0)"},
+		{"x % 2 > 0", "((x % 2) > 0)"},
+
+		// Modulo in array indexing
+		{"arr[i % 5]", "(arr[(i % 5)])"},
+		{"arr[0] % 2", "((arr[0]) % 2)"},
+
+		// Modulo in function calls
+		{"f(a % b)", "f((a % b))"},
+		{"f(x % 2, y % 3)", "f((x % 2), (y % 3))"},
+
+		// Chained modulo
+		{"a % b % c", "((a % b) % c)"},
+
+		// Complex expressions with modulo
+		{"let x = a % b;", "let x = (a % b);"},
+		{"return a % b;", "return (a % b);"},
+		{"if (x % 2 == 0) { 1 }", "if(((x % 2) == 0)){1}"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestArrayIndexing(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		// Basic indexing
+		{"arr[0]", "(arr[0])"},
+		{"arr[1]", "(arr[1])"},
+		{"x[i]", "(x[i])"},
+
+		// Index with expressions
+		{"arr[i + 1]", "(arr[(i + 1)])"},
+		{"arr[i - 1]", "(arr[(i - 1)])"},
+		{"arr[i * 2]", "(arr[(i * 2)])"},
+		{"arr[i / 2]", "(arr[(i / 2)])"},
+
+		// Nested indexing
+		{"arr[arr[0]]", "(arr[(arr[0])])"},
+		{"matrix[i][j]", "((matrix[i])[j])"},
+
+		// Indexing with function calls
+		{"arr[f()]", "(arr[f()])"},
+		{"arr[len(x)]", "(arr[len(x)])"},
+
+		// Indexing in expressions
+		{"arr[0] + arr[1]", "((arr[0]) + (arr[1]))"},
+		{"arr[i] * 2", "((arr[i]) * 2)"},
+		{"arr[0] == 5", "((arr[0]) == 5)"},
+
+		// Indexing in let statements
+		{"let x = arr[0];", "let x = (arr[0]);"},
+		{"let y = arr[i + 1];", "let y = (arr[(i + 1)]);"},
+
+		// Indexing in return statements
+		{"return arr[0]", "return (arr[0]);"},
+		{"return arr[i]", "return (arr[i]);"},
+
+		// Indexing in if conditions
+		{"if (arr[0] > 5) { 1 }", "if(((arr[0]) > 5)){1}"},
+		{"if (arr[i] == x) { 1 } else { 2 }", "if(((arr[i]) == x)){1}else{2}"},
+
+		// Indexing in function calls
+		{"f(arr[0])", "f((arr[0]))"},
+		{"f(arr[0], arr[1])", "f((arr[0]), (arr[1]))"},
+		{"f(arr[i], g(arr[j]))", "f((arr[i]), g((arr[j])))"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestForStatements(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"let i = 0; for (i < 5) { i = i + 1; }", "let i = 0;for((i < 5)){(i = (i + 1))}"},
+		{"let x = 10; for (x > 0) { x = x - 1; }", "let x = 10;for((x > 0)){(x = (x - 1))}"},
 	}
 	for _, tt := range testCases {
 		l := golexer.NewLexer(tt.input)

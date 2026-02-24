@@ -50,6 +50,10 @@ func main() {
 		"add(1,2);",
 		"let name = \"Alice\";",
 		"let raw = `This is a raw string\nwith a newline.`;",
+		"let arr = [1, 2, 3, 4];",
+		"arr[i + 4]",
+		"let num = 10 % 3;",
+		"let i = 0; for (i < 10) { i = i + 1; }",
 	}
 
 	for _, input := range testCases {
@@ -73,4 +77,5 @@ func main() {
 
 		fmt.Printf("AST:    %s\n", program.String())
 	}
+
 }
