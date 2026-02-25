@@ -22,6 +22,16 @@ const (
 	CALL            // 11 - function calls
 )
 
+// extra tokens
+const (
+	SWITCH  = golexer.TokenType("SWITCH")
+	CASE    = golexer.TokenType("CASE")
+	DEFAULT = golexer.TokenType("DEFAULT")
+	ARROW   = golexer.TokenType("ARROW")
+	IN      = golexer.TokenType("IN")
+	TABLE   = golexer.TokenType("TABLE")
+)
+
 // Node is the base interface for all AST nodes.
 type Node interface {
 	TokenLiteral() string
@@ -88,6 +98,7 @@ type IfExpression struct {
 	Consequence *BlockStatement
 	Alternative *BlockStatement
 }
+
 type ForStatement struct {
 	Token     golexer.Token
 	Condition Expression // Optional: condition expression
@@ -126,6 +137,30 @@ type BreakStatement struct {
 }
 type ContinueStatement struct {
 	Token golexer.Token
+}
+type SwitchStatement struct {
+	Token       golexer.Token
+	Expression  Expression
+	Cases       []SwitchCase
+	DefaultCase *BlockStatement
+}
+type SwitchCase struct {
+	Token     golexer.Token
+	Condition Expression
+	Body      *BlockStatement
+}
+type NullExpression struct {
+	Token golexer.Token
+}
+type ForInStatement struct {
+	Token      golexer.Token
+	item       *Identifier
+	collection Expression
+	Body       *BlockStatement
+}
+type TableLiteral struct {
+	Token golexer.Token
+	Pairs map[Expression]Expression
 }
 
 type PrefixParsefn func() Expression
@@ -356,6 +391,78 @@ func (cs *ContinueStatement) TokenLiteral() string { return cs.Token.Literal }
 func (cs *ContinueStatement) String() string {
 	return cs.TokenLiteral() + ";"
 }
+func (ss *SwitchStatement) statmentNode()        {}
+func (ss *SwitchStatement) TokenLiteral() string { return ss.Token.Literal }
+func (ss *SwitchStatement) String() string {
+	var out strings.Builder
+	out.WriteString(ss.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(ss.Expression.String())
+	out.WriteString(")")
+	out.WriteString("{")
+	for _, c := range ss.Cases {
+		out.WriteString(c.TokenLiteral())
+		out.WriteString(" ")
+		out.WriteString(c.Condition.String())
+		out.WriteString(" {")
+		out.WriteString(c.Body.String())
+	}
+	if ss.DefaultCase != nil {
+		out.WriteString("default {")
+		out.WriteString(ss.DefaultCase.String())
+		out.WriteString("}")
+	}
+	out.WriteString("}")
+	return out.String()
+}
+func (sc *SwitchCase) TokenLiteral() string { return sc.Token.Literal }
+func (sc *SwitchCase) String() string {
+	var out strings.Builder
+	out.WriteString(sc.TokenLiteral())
+	out.WriteString(" ")
+	out.WriteString(sc.Condition.String())
+	out.WriteString(" {")
+	out.WriteString(sc.Body.String())
+	out.WriteString("}")
+	return out.String()
+}
+func (nl *NullExpression) expressionNode()      {}
+func (nl *NullExpression) TokenLiteral() string { return nl.Token.Literal }
+func (nl *NullExpression) String() string {
+	return nl.TokenLiteral()
+}
+func (fi *ForInStatement) statmentNode()        {}
+func (fi *ForInStatement) TokenLiteral() string { return fi.Token.Literal }
+func (fi *ForInStatement) String() string {
+	var out strings.Builder
+	out.WriteString(fi.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(fi.item.String())
+	out.WriteString("in")
+	out.WriteString(fi.collection.String())
+	out.WriteString(")")
+	return out.String()
+}
+func (tl *TableLiteral) expressionNode()      {}
+func (tl *TableLiteral) TokenLiteral() string { return tl.Token.Literal }
+func (tl *TableLiteral) String() string {
+	var out strings.Builder
+	out.WriteString(tl.TokenLiteral())
+	out.WriteString("{")
+	i := 0
+	for key, value := range tl.Pairs {
+		if i > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString(key.String())
+		out.WriteString(":")
+		out.WriteString(value.String())
+		i++
+	}
+	out.WriteString("}")
+	return out.String()
+
+}
 
 // Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
@@ -470,7 +577,7 @@ func NewParser(lexer *golexer.Lexer) *Parser {
 	p.registerPrefix(golexer.BANG, p.parsePrefixExpression)
 	p.registerPrefix(golexer.STRING, p.parserStringLiteral)
 	p.registerPrefix(golexer.BACKTICK_STRING, p.parserStringLiteral)
-
+	p.registerPrefix(golexer.NULL, p.parseNullExpression)
 	// boolean literals
 	p.registerPrefix(golexer.TRUE, p.parseBoolean)
 	p.registerPrefix(golexer.FALSE, p.parseBoolean)
@@ -483,6 +590,10 @@ func NewParser(lexer *golexer.Lexer) *Parser {
 	//arrays
 	p.registerPrefix(golexer.LBRACKET, func() Expression {
 		return p.parseArrayLiteral()
+	})
+	//tables (hash maps)
+	p.registerPrefix(TABLE, func() Expression {
+		return p.parseTableLiteral()
 	})
 	p.nextToken()
 	p.nextToken()
@@ -542,6 +653,9 @@ func (p *Parser) parseStatment() Statement {
 		return &BreakStatement{
 			Token: p.curToken,
 		}
+	case SWITCH:
+		return p.parseSwitchStatement()
+
 	default:
 		return p.parseExpressionStatment()
 	}
@@ -627,14 +741,18 @@ func (p *Parser) parseIfExpression() *IfExpression {
 	return stmt
 }
 
-func (p *Parser) parseForStatement() *ForStatement {
+func (p *Parser) parseForStatement() Statement {
 	stmt := &ForStatement{Token: p.curToken}
 	if !p.expectPeek(golexer.LPAREN) {
 		p.synchronize()
 		return nil
 	}
 	p.nextToken()
+	if p.curTokenIs(golexer.IDENT) && p.peekTokenIs(IN) {
+		return p.parseForInStatement()
+	}
 	if p.curTokenIs(golexer.RPAREN) {
+
 		p.nextToken()
 	} else {
 		stmt.Condition = p.parseExpression(LOWEST)
@@ -759,13 +877,30 @@ func (p *Parser) parseFunctionLiteral() Expression {
 		return nil
 	}
 	lit.Parameters = p.parseFunctionParameters()
-	if !p.expectPeek(golexer.LBRACE) {
-		p.synchronize()
-		return nil
+	if p.peekTokenIs(ARROW) {
+		fmt.Println("got arrow here")
+		p.nextToken()
+
+		p.nextToken()
+
+		body := p.parseExpression(LOWEST)
+		lit.Body = &BlockStatement{
+			Token: p.curToken,
+			Statements: []Statement{&ReturnStatement{
+				Token:       golexer.Token{Type: golexer.RETURN, Literal: "return"},
+				ReturnValue: body,
+			}},
+		}
+	} else {
+		if !p.expectPeek(golexer.LBRACE) {
+			p.synchronize()
+			return nil
+		}
+		lit.Body = p.parseBlockStatement()
 	}
-	lit.Body = p.parseBlockStatement()
 	return lit
 }
+
 func (p *Parser) parseFunctionParameters() []*Identifier {
 	identifiers := []*Identifier{}
 	if p.peekTokenIs(golexer.RPAREN) {
@@ -785,6 +920,7 @@ func (p *Parser) parseFunctionParameters() []*Identifier {
 		p.synchronize()
 		return nil
 	}
+
 	return identifiers
 }
 func (p *Parser) parseFunctionCall(function Expression) Expression {
@@ -852,4 +988,96 @@ func (p *Parser) parseArrayIndexExpression(array Expression) Expression {
 		return nil
 	}
 	return exp
+}
+func (p *Parser) parseSwitchStatement() Statement {
+	stmt := &SwitchStatement{Token: p.curToken}
+	if !p.expectPeek(golexer.LPAREN) {
+		p.synchronize()
+		return nil
+	}
+	p.nextToken()
+	stmt.Expression = p.parseExpression(LOWEST)
+	if !p.expectPeek(golexer.RPAREN) {
+		p.synchronize()
+		return nil
+	}
+	if !p.expectPeek(golexer.LBRACE) {
+		p.synchronize()
+		return nil
+	}
+	p.nextToken()
+	stmt.Cases = []SwitchCase{}
+	for p.curTokenIs(CASE) {
+		p.nextToken()
+		caseStmt := SwitchCase{Token: p.curToken}
+		caseStmt.Condition = p.parseExpression(LOWEST)
+		if !p.expectPeek(golexer.LBRACE) {
+			p.synchronize()
+			return nil
+		}
+		caseStmt.Body = p.parseBlockStatement()
+		p.nextToken()
+		stmt.Cases = append(stmt.Cases, caseStmt)
+	}
+	if p.curTokenIs(DEFAULT) {
+		if !p.expectPeek(golexer.LBRACE) {
+			p.synchronize()
+			return nil
+		}
+		stmt.DefaultCase = p.parseBlockStatement()
+	}
+	if !p.expectPeek(golexer.RBRACE) {
+		p.synchronize()
+		return nil
+	}
+
+	return stmt
+}
+func (p *Parser) parseNullExpression() Expression {
+	return &NullExpression{Token: p.curToken}
+}
+func (p *Parser) parseForInStatement() Statement {
+	stmt := &ForInStatement{Token: p.curToken}
+	stmt.item = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	p.nextToken()
+	p.nextToken()
+	stmt.collection = p.parseExpression(LOWEST)
+	if !p.expectPeek(golexer.RPAREN) {
+		p.synchronize()
+		return nil
+	}
+
+	if !p.expectPeek(golexer.LBRACE) {
+		p.synchronize()
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
+}
+
+func (p *Parser) parseTableLiteral() Expression {
+	exp := &TableLiteral{Token: p.curToken}
+	exp.Pairs = make(map[Expression]Expression)
+	if !p.expectPeek(golexer.LBRACE) {
+		p.synchronize()
+		return nil
+	}
+	p.nextToken()
+	for !p.curTokenIs(golexer.RBRACE) && golexer.TokenType("EOF") != p.curToken.Type {
+		key := p.parseExpression(LOWEST)
+		if !p.expectPeek(golexer.COLON) {
+			p.synchronize()
+			return nil
+		}
+		p.nextToken()
+		value := p.parseExpression(LOWEST)
+		exp.Pairs[key] = value
+		if p.peekTokenIs(golexer.COMMA) {
+			p.nextToken()
+		}
+		p.nextToken()
+	}
+	return exp
+
 }

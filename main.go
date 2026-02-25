@@ -54,11 +54,16 @@ func main() {
 		"arr[i + 4]",
 		"let num = 10 % 3;",
 		"let i = 0; for (i < 10) { i = i + 1; }",
+		"switch (expression) { case value { statements } default { statements } }",
+		"let name = null",
+		"for (item in collection) { /* statements */ }",
+		"let result = fn(a,b) ~ a + b;",
+		"let t = table { \"key1\": \"value1\", \"key2\": 42 };",
 	}
 
 	for _, input := range testCases {
 		fmt.Printf("\nInput:  %s\n", input)
-		lexer := golexer.NewLexer(input)
+		lexer := golexer.NewLexerWithConfig(input, "tokens.json")
 		p := parser.NewParser(lexer)
 		program := p.Parse()
 
