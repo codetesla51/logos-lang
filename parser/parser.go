@@ -160,9 +160,12 @@ type ForInStatement struct {
 }
 type TableLiteral struct {
 	Token golexer.Token
-	Pairs map[Expression]Expression
+	Pairs []TablePair
 }
-
+type TablePair struct {
+	Key   Expression
+	Value Expression
+}
 type PrefixParsefn func() Expression
 type InfixParsefn func(Expression) Expression
 
@@ -395,22 +398,20 @@ func (ss *SwitchStatement) statmentNode()        {}
 func (ss *SwitchStatement) TokenLiteral() string { return ss.Token.Literal }
 func (ss *SwitchStatement) String() string {
 	var out strings.Builder
-	out.WriteString(ss.TokenLiteral())
+	out.WriteString("switch")
 	out.WriteString("(")
 	out.WriteString(ss.Expression.String())
 	out.WriteString(")")
 	out.WriteString("{")
 	for _, c := range ss.Cases {
-		out.WriteString(c.TokenLiteral())
-		out.WriteString(" ")
+		out.WriteString("case ")
 		out.WriteString(c.Condition.String())
-		out.WriteString(" {")
+		out.WriteString(" ")
 		out.WriteString(c.Body.String())
 	}
 	if ss.DefaultCase != nil {
-		out.WriteString("default {")
+		out.WriteString("default ")
 		out.WriteString(ss.DefaultCase.String())
-		out.WriteString("}")
 	}
 	out.WriteString("}")
 	return out.String()
@@ -435,12 +436,13 @@ func (fi *ForInStatement) statmentNode()        {}
 func (fi *ForInStatement) TokenLiteral() string { return fi.Token.Literal }
 func (fi *ForInStatement) String() string {
 	var out strings.Builder
-	out.WriteString(fi.TokenLiteral())
+	out.WriteString("for")
 	out.WriteString("(")
 	out.WriteString(fi.item.String())
-	out.WriteString("in")
+	out.WriteString(" in ")
 	out.WriteString(fi.collection.String())
 	out.WriteString(")")
+	out.WriteString(fi.Body.String())
 	return out.String()
 }
 func (tl *TableLiteral) expressionNode()      {}
@@ -449,15 +451,16 @@ func (tl *TableLiteral) String() string {
 	var out strings.Builder
 	out.WriteString(tl.TokenLiteral())
 	out.WriteString("{")
-	i := 0
-	for key, value := range tl.Pairs {
-		if i > 0 {
-			out.WriteString(", ")
+	if tl.Pairs != nil {
+		for i, p := range tl.Pairs {
+			if i > 0 {
+				out.WriteString(", ")
+			}
+			out.WriteString(p.Key.String())
+			out.WriteString(":")
+			out.WriteString(p.Value.String())
+
 		}
-		out.WriteString(key.String())
-		out.WriteString(":")
-		out.WriteString(value.String())
-		i++
 	}
 	out.WriteString("}")
 	return out.String()
@@ -509,7 +512,7 @@ func (p *Parser) noPrefixParseFnError(t golexer.TokenType) {
 }
 func (p *Parser) synchronize() {
 	for !p.curTokenIs(golexer.EOF) {
-		if !p.curTokenIs(golexer.SEMICOLON) {
+		if p.curTokenIs(golexer.SEMICOLON) {
 			p.nextToken()
 			return
 		}
@@ -592,9 +595,7 @@ func NewParser(lexer *golexer.Lexer) *Parser {
 		return p.parseArrayLiteral()
 	})
 	//tables (hash maps)
-	p.registerPrefix(TABLE, func() Expression {
-		return p.parseTableLiteral()
-	})
+	p.registerPrefix(TABLE, p.parseTableLiteral)
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -618,9 +619,7 @@ func (p *Parser) Parse() *Program {
 		}
 		p.nextToken()
 	}
-	if len(p.errors) > 0 {
-		return nil
-	}
+
 	return program
 }
 func (p *Parser) parseStatment() Statement {
@@ -878,7 +877,6 @@ func (p *Parser) parseFunctionLiteral() Expression {
 	}
 	lit.Parameters = p.parseFunctionParameters()
 	if p.peekTokenIs(ARROW) {
-		fmt.Println("got arrow here")
 		p.nextToken()
 
 		p.nextToken()
@@ -1025,13 +1023,11 @@ func (p *Parser) parseSwitchStatement() Statement {
 			return nil
 		}
 		stmt.DefaultCase = p.parseBlockStatement()
-	}
-	if !p.expectPeek(golexer.RBRACE) {
-		p.synchronize()
-		return nil
+		p.nextToken() // consume outer }
 	}
 
 	return stmt
+
 }
 func (p *Parser) parseNullExpression() Expression {
 	return &NullExpression{Token: p.curToken}
@@ -1055,10 +1051,8 @@ func (p *Parser) parseForInStatement() Statement {
 
 	return stmt
 }
-
 func (p *Parser) parseTableLiteral() Expression {
 	exp := &TableLiteral{Token: p.curToken}
-	exp.Pairs = make(map[Expression]Expression)
 	if !p.expectPeek(golexer.LBRACE) {
 		p.synchronize()
 		return nil
@@ -1072,12 +1066,11 @@ func (p *Parser) parseTableLiteral() Expression {
 		}
 		p.nextToken()
 		value := p.parseExpression(LOWEST)
-		exp.Pairs[key] = value
+		exp.Pairs = append(exp.Pairs, TablePair{Key: key, Value: value})
 		if p.peekTokenIs(golexer.COMMA) {
 			p.nextToken()
 		}
 		p.nextToken()
 	}
 	return exp
-
 }

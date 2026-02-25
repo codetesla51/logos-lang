@@ -58,7 +58,10 @@ func main() {
 		"let name = null",
 		"for (item in collection) { /* statements */ }",
 		"let result = fn(a,b) ~ a + b;",
-		"let t = table { \"key1\": \"value1\", \"key2\": 42 };",
+		"table{key1: value1, key2: value2}",
+		"table{key1: value1, key2: value2}[key1]",
+		"table{}",
+		"switch (x) { case 1 { 10 } }",
 	}
 
 	for _, input := range testCases {

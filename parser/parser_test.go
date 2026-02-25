@@ -782,3 +782,378 @@ func TestForStatements(t *testing.T) {
 		}
 	}
 }
+func TestTableLiterals(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		// Empty table
+		{`table{}`, `table{}`},
+		// Single string key
+		{`table{"key": 1}`, `table{"key":1}`},
+		// Single integer key
+		{`table{1: "one"}`, `table{1:"one"}`},
+		// Single boolean key
+		{`table{true: 1}`, `table{true:1}`},
+		// Multiple pairs - order now guaranteed
+		{`table{"a": 1, "b": 2}`, `table{"a":1, "b":2}`},
+		{`table{"a": 1, "b": 2, "c": 3}`, `table{"a":1, "b":2, "c":3}`},
+		// Expression value
+		{`table{"sum": 1 + 2}`, `table{"sum":(1 + 2)}`},
+		// Expression key
+		{`table{1 + 1: "two"}`, `table{(1 + 1):"two"}`},
+		// Nested table as value
+		{`table{"inner": table{"x": 1}}`, `table{"inner":table{"x":1}}`},
+		// Nested table multiple pairs
+		{`table{"a": 1, "inner": table{"x": 1, "y": 2}}`, `table{"a":1, "inner":table{"x":1, "y":2}}`},
+		// Identifier value
+		{`let x = 5; table{"val": x}`, `let x = 5;table{"val":x}`},
+		// Identifier key
+		{`let k = "key"; table{k: 42}`, `let k = "key";table{k:42}`},
+		// Mixed key types
+		{`table{"str": 1, 2: "int"}`, `table{"str":1, 2:"int"}`},
+		// Boolean value
+		{`table{"flag": true}`, `table{"flag":true}`},
+		// Multiple mixed expression values
+		{`table{"a": 1 + 2, "b": 3 * 4}`, `table{"a":(1 + 2), "b":(3 * 4)}`},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestForInStatements(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"for (item in list) { let x = item; }", "for(item in list){let x = item;}"}, {"for (item in getItems()) { item; }", "for(item in getItems()){item}"},
+		{"for (item in list) { print(item); item; }", "for(item in list){print(item);item}"},
+		{"for (i in list) { for (j in i) { j; } }", "for(i in list){for(j in i){j}}"},
+		{"for (num in numbers) { print(num); }", "for(num in numbers){print(num)}"},
+		{"for (x in a + b) { x; }", "for(x in (a + b)){x}"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestNullExpression(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"null", "null"},
+		{"let x = null", "let x = null;"},
+		{"let x = null; let y = null;", "let x = null;let y = null;"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestArrowFunctions(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"fn(x) ~ x", "fn(x){return x;}"},
+		{"fn(x) ~ x + 1", "fn(x){return (x + 1);}"},
+		{"fn(x, y) ~ x + y", "fn(x, y){return (x + y);}"},
+		{"fn() ~ 42", "fn(){return 42;}"},
+		{"let add = fn(a, b) ~ a + b", "let add = fn(a, b){return (a + b);};"},
+		{"let double = fn(x) ~ x * 2", "let double = fn(x){return (x * 2);};"},
+		{"fn(x) ~ print(x)", "fn(x){return print(x);}"},
+		{"fn(x) ~ x > 0", "fn(x){return (x > 0);}"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestStringLiterals(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{`"hello"`, `"hello"`},
+		{`"world"`, `"world"`},
+		{`""`, `""`},
+		{"let x = \"hello\";", `let x = "hello";`},
+		{"let x = \"hello\"; let y = \"world\";", `let x = "hello";let y = "world";`},
+		{"`raw string`", "`raw string`"},
+		{"`hello world`", "`hello world`"},
+		{"let x = `raw`;", "let x = `raw`;"},
+		{`"hello" == "world"`, `("hello" == "world")`},
+		{`fn(x) { x }`, `fn(x){x}`},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestFloatLiterals(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"3.14", "3.14"},
+		{"0.5", "0.5"},
+		{"2.0", "2.0"},
+		{"let x = 3.14;", "let x = 3.14;"},
+		{"3.14 + 1.0", "(3.14 + 1.0)"},
+		{"3.14 * 2.0", "(3.14 * 2.0)"},
+		{"3.14 > 2.0", "(3.14 > 2.0)"},
+		{"return 3.14", "return 3.14;"},
+		{"fn(x) { 3.14 }", "fn(x){3.14}"},
+		{"let x = 1.5 + 2.5;", "let x = (1.5 + 2.5);"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestNumberFormats(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"0xFF", "0xFF"},
+		{"0x1A2B", "0x1A2B"},
+		{"0b1010", "0b1010"},
+		{"0B1111", "0B1111"},
+		{"0o777", "0o777"},
+		{"0755", "0755"},
+		{"let hex = 0xFF;", "let hex = 0xFF;"},
+		{"let bin = 0b1010;", "let bin = 0b1010;"},
+		{"let oct = 0o777;", "let oct = 0o777;"},
+		{"0xFF + 0b1010", "(0xFF + 0b1010)"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestCompoundAssignments(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"x += 1", "(x += 1)"},
+		{"x -= 1", "(x -= 1)"},
+		{"x *= 2", "(x *= 2)"},
+		{"x /= 2", "(x /= 2)"},
+		{"x %= 3", "(x %= 3)"},
+		{"x += 1 + 2", "(x += (1 + 2))"},
+		{"x *= 2 + 3", "(x *= (2 + 3))"},
+		{"let x = 5; x += 1", "let x = 5;(x += 1)"},
+		{"let x = 10; x -= 3", "let x = 10;(x -= 3)"},
+		{"let x = 2; x *= 4", "let x = 2;(x *= 4)"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestSwitchStatements(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{
+			`switch (x) { case 1 { 10 } }`,
+			`switch(x){case 1 {10}}`,
+		},
+		{
+			`switch (x) { case 1 { 10 } case 2 { 20 } }`,
+			`switch(x){case 1 {10}case 2 {20}}`,
+		},
+		{
+			`switch (x) { case 1 { 10 } default { 0 } }`,
+			`switch(x){case 1 {10}default {0}}`,
+		},
+		{
+			`switch (x) { case 1 { 10 } case 2 { 20 } default { 0 } }`,
+			`switch(x){case 1 {10}case 2 {20}default {0}}`,
+		},
+		{
+			`switch (x + 1) { case 2 { 10 } default { 0 } }`,
+			`switch((x + 1)){case 2 {10}default {0}}`,
+		},
+		{
+			`switch (x) { case true { 1 } case false { 0 } }`,
+			`switch(x){case true {1}case false {0}}`,
+		},
+		{
+			`switch (x) { default { 0 } }`,
+			`switch(x){default {0}}`,
+		},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+
+func TestArrowFunctionAdvanced(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		// Arrow returning arrow
+		{"fn(x) ~ fn(y) ~ x + y", "fn(x){return fn(y){return (x + y);};}"},
+		// Arrow in array
+		{"[fn(x) ~ x, fn(y) ~ y * 2]", "[fn(x){return x;}, fn(y){return (y * 2);}]"},
+		// Arrow as function argument
+		{"map(fn(x) ~ x * 2)", "map(fn(x){return (x * 2);})"},
+		// Arrow with boolean body
+		{"fn(x, y) ~ x && y", "fn(x, y){return (x && y);}"},
+		// Arrow with comparison
+		{"fn(x) ~ x == 0", "fn(x){return (x == 0);}"},
+		// Arrow called immediately
+		{"fn(x) ~ x + 1", "fn(x){return (x + 1);}"},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		p := NewParser(l)
+		program := p.Parse()
+		if len(p.Errors()) != 0 {
+			t.Fatalf("input=%q: parser has %d errors: %v", tt.input, len(p.Errors()), p.Errors())
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program.String() != tt.expected {
+			t.Fatalf("input=%q: expected=%q, got=%q", tt.input, tt.expected, program.String())
+		}
+	}
+}
+func TestErrorRecovery(t *testing.T) {
+	testCases := []struct {
+		input         string
+		expectedStmts int
+		expectErrors  bool
+	}{
+		{"let x = ; let y = 5;", 2, true},
+		{"let x = 5; let y = ; let z = 10;", 3, true},
+		{"let x = ; let y = 10;", 2, true},
+		{"5 + ; let x = 10;", 2, true},
+		{"let x = ; let y = ; let z = 5;", 3, true},
+		{"let x = ; let y = 5; let z = 10;", 3, true},
+	}
+	for _, tt := range testCases {
+		l := golexer.NewLexer(tt.input)
+		p := NewParser(l)
+		program := p.Parse()
+		hasErrors := len(p.Errors()) > 0
+		if hasErrors != tt.expectErrors {
+			if tt.expectErrors {
+				t.Fatalf("input=%q: expected errors but got none", tt.input)
+			} else {
+				t.Fatalf("input=%q: expected no errors but got: %v", tt.input, p.Errors())
+			}
+		}
+		if program == nil {
+			t.Fatalf("input=%q: Parse() returned nil", tt.input)
+		}
+		if program != nil && tt.expectedStmts > 0 {
+			if len(program.Statements) != tt.expectedStmts {
+				t.Fatalf("input=%q: expected %d statements after recovery, got %d", tt.input, tt.expectedStmts, len(program.Statements))
+			}
+		}
+	}
+}
