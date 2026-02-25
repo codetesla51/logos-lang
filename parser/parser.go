@@ -27,7 +27,7 @@ const (
 	SWITCH  = golexer.TokenType("SWITCH")
 	CASE    = golexer.TokenType("CASE")
 	DEFAULT = golexer.TokenType("DEFAULT")
-	ARROW   = golexer.TokenType("ARROW")
+	ARROW   = golexer.ARROW
 	IN      = golexer.TokenType("IN")
 	TABLE   = golexer.TokenType("TABLE")
 )

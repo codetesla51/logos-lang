@@ -57,11 +57,13 @@ func main() {
 		"switch (expression) { case value { statements } default { statements } }",
 		"let name = null",
 		"for (item in collection) { /* statements */ }",
-		"let result = fn(a,b) ~ a + b;",
+		"let result = fn(a,b) -> a + b;",
 		"table{key1: value1, key2: value2}",
 		"table{key1: value1, key2: value2}[key1]",
 		"table{}",
 		"switch (x) { case 1 { 10 } }",
+		"",
+		"let x = if (x >= y){return y}", // Syntax error
 	}
 
 	for _, input := range testCases {

@@ -885,14 +885,14 @@ func TestArrowFunctions(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"fn(x) ~ x", "fn(x){return x;}"},
-		{"fn(x) ~ x + 1", "fn(x){return (x + 1);}"},
-		{"fn(x, y) ~ x + y", "fn(x, y){return (x + y);}"},
-		{"fn() ~ 42", "fn(){return 42;}"},
-		{"let add = fn(a, b) ~ a + b", "let add = fn(a, b){return (a + b);};"},
-		{"let double = fn(x) ~ x * 2", "let double = fn(x){return (x * 2);};"},
-		{"fn(x) ~ print(x)", "fn(x){return print(x);}"},
-		{"fn(x) ~ x > 0", "fn(x){return (x > 0);}"},
+		{"fn(x) -> x", "fn(x){return x;}"},
+		{"fn(x) -> x + 1", "fn(x){return (x + 1);}"},
+		{"fn(x, y) -> x + y", "fn(x, y){return (x + y);}"},
+		{"fn() -> 42", "fn(){return 42;}"},
+		{"let add = fn(a, b) -> a + b", "let add = fn(a, b){return (a + b);};"},
+		{"let double = fn(x) -> x * 2", "let double = fn(x){return (x * 2);};"},
+		{"fn(x) -> print(x)", "fn(x){return print(x);}"},
+		{"fn(x) -> x > 0", "fn(x){return (x > 0);}"},
 	}
 	for _, tt := range testCases {
 		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
@@ -1093,17 +1093,17 @@ func TestArrowFunctionAdvanced(t *testing.T) {
 		expected string
 	}{
 		// Arrow returning arrow
-		{"fn(x) ~ fn(y) ~ x + y", "fn(x){return fn(y){return (x + y);};}"},
+		{"fn(x) -> fn(y) -> x + y", "fn(x){return fn(y){return (x + y);};}"},
 		// Arrow in array
-		{"[fn(x) ~ x, fn(y) ~ y * 2]", "[fn(x){return x;}, fn(y){return (y * 2);}]"},
+		{"[fn(x) -> x, fn(y) -> y * 2]", "[fn(x){return x;}, fn(y){return (y * 2);}]"},
 		// Arrow as function argument
-		{"map(fn(x) ~ x * 2)", "map(fn(x){return (x * 2);})"},
+		{"map(fn(x) -> x * 2)", "map(fn(x){return (x * 2);})"},
 		// Arrow with boolean body
-		{"fn(x, y) ~ x && y", "fn(x, y){return (x && y);}"},
+		{"fn(x, y) -> x && y", "fn(x, y){return (x && y);}"},
 		// Arrow with comparison
-		{"fn(x) ~ x == 0", "fn(x){return (x == 0);}"},
+		{"fn(x) -> x == 0", "fn(x){return (x == 0);}"},
 		// Arrow called immediately
-		{"fn(x) ~ x + 1", "fn(x){return (x + 1);}"},
+		{"fn(x) -> x + 1", "fn(x){return (x + 1);}"},
 	}
 	for _, tt := range testCases {
 		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
