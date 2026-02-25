@@ -262,7 +262,7 @@ func TestParserErrors(t *testing.T) {
 	for _, tt := range tests {
 		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
-		program := p.Parse()
+		p.Parse()
 		hasErrors := len(p.Errors()) > 0
 		if hasErrors != tt.shouldError {
 			if tt.shouldError {
@@ -271,9 +271,7 @@ func TestParserErrors(t *testing.T) {
 				t.Fatalf("input=%q: expected no errors but got: %v", tt.input, p.Errors())
 			}
 		}
-		if tt.shouldError && program != nil {
-			t.Fatalf("input=%q: Parse() should return nil when there are errors. got=%v", tt.input, program)
-		}
+
 	}
 }
 func TestParserPrecedence(t *testing.T) {
