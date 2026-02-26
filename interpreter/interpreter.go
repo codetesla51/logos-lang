@@ -8,6 +8,7 @@ import (
 )
 
 type ObjectType string
+type BuiltinFunc func(args ...Object) Object
 
 const (
 	INTEGER_OBJ      = "INTEGER"
@@ -68,6 +69,9 @@ type Function struct {
 
 type String struct {
 	Value string
+}
+type Builtin struct {
+	Fn BuiltinFunc
 }
 
 func (i *Integar) Type() ObjectType {
@@ -154,6 +158,12 @@ func (a *Array) String() string {
 	}
 	out.WriteString("]")
 	return out.String()
+}
+func (bi *Builtin) Type() ObjectType {
+	return BUILTIN_OBJ
+}
+func (bi *Builtin) String() string {
+	return "builtin function"
 }
 func NewEnvironment() *Environment {
 	return &Environment{store: make(map[string]Object), outer: nil}
@@ -257,6 +267,9 @@ func (i *Interpreter) evalProgram(program *parser.Program, env *Environment) Obj
 func (i *Interpreter) evalIdentifier(node *parser.Identifier, env *Environment) Object {
 	if val, ok := env.Get(node.Value); ok {
 		return val
+	}
+	if builtin, ok := builtins[node.Value]; ok {
+		return builtin
 	}
 	return newError("identifier not found: %s", node.Value)
 }
@@ -462,14 +475,17 @@ func (i *Interpreter) evalExpressions(exps []parser.Expression, env *Environment
 	return result
 }
 func (i *Interpreter) applyFunction(fn Object, args []Object) Object {
-	function, ok := fn.(*Function)
-	if !ok {
+	switch function := fn.(type) {
+	case *Function:
+		// create new function enviroment
+		extendedEnv := i.extendFunctionEnv(function, args)
+		evaluated := i.Eval(function.Body, extendedEnv)
+		return i.unwrapReturnValue(evaluated)
+	case *Builtin:
+		return function.Fn(args...)
+	default:
 		return newError("not a function: %s", fn.Type())
 	}
-	// create new function enviroment
-	extendedEnv := i.extendFunctionEnv(function, args)
-	evaluated := i.Eval(function.Body, extendedEnv)
-	return i.unwrapReturnValue(evaluated)
 }
 func (i *Interpreter) extendFunctionEnv(function *Function, args []Object) *Environment {
 	env := NewEnclosedEnvironment(function.Env)

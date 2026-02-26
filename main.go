@@ -99,12 +99,14 @@ import (
 )
 
 func main() {
-	input := "let fib = fn(n) {if (n <= 1) { return n }fib(n - 1) + fib(n - 2)};fib(10);"
+	input := "let x = 0.005; print(x);"
 	lexer := golexer.NewLexerWithConfig(input, "tokens.json")
 	parsr := parser.NewParser(lexer)
 	program := parsr.Parse()
 	inter := interpreter.NewInterpreter()
 	result := inter.Eval(program, inter.Env)
 	println("Parsed AST:", program.String())
-	println(result.String())
+	if result.Type() != interpreter.NULL_OBJ {
+		println("Result:", result.String())
+	}
 }
