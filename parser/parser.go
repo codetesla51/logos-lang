@@ -35,7 +35,7 @@ const (
 // Node is the base interface for all AST nodes.
 type Node interface {
 	TokenLiteral() string
-	String() string
+	String() string // string method for testing and debugging
 }
 
 // Statement represents a statement in the AST.
@@ -313,7 +313,6 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 func (fl *FunctionLiteral) expressionNode()      {}
-func (fl *FunctionLiteral) statmentNode()        {}
 func (fl *FunctionLiteral) TokenLiteral() string { return fl.Token.Literal }
 func (fl *FunctionLiteral) String() string {
 	var out strings.Builder

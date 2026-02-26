@@ -1148,7 +1148,7 @@ func TestErrorRecovery(t *testing.T) {
 		if program == nil {
 			t.Fatalf("input=%q: Parse() returned nil", tt.input)
 		}
-		if program != nil && tt.expectedStmts > 0 {
+		if tt.expectedStmts > 0 {
 			if len(program.Statements) != tt.expectedStmts {
 				t.Fatalf("input=%q: expected %d statements after recovery, got %d", tt.input, tt.expectedStmts, len(program.Statements))
 			}
