@@ -22,6 +22,8 @@ const (
 	BUILTIN_OBJ      = "BUILTIN"
 	ARRAY_OBJ        = "ARRAY"
 	TABLE_OBJ        = "TABLE"
+	CONTINUE_OBJ     = "CONTINUE"
+	BREAK_OBJ        = "BREAK"
 )
 
 // singletons
@@ -58,6 +60,8 @@ type Null struct{}
 type ReturnValue struct {
 	Value Object
 }
+type ContinueSignal struct{}
+type BreakSignal struct{}
 type Error struct {
 	Message string
 	Line    int
@@ -118,6 +122,10 @@ func (e *Error) Type() ObjectType {
 	return ERROR_OBJ
 }
 
+func (c *ContinueSignal) Type() ObjectType { return CONTINUE_OBJ }
+func (b *BreakSignal) Type() ObjectType    { return BREAK_OBJ }
+func (c *ContinueSignal) String() string   { return "continue" }
+func (b *BreakSignal) String() string      { return "break" }
 func (e *Error) String() string {
 	if e.Line > 0 {
 		return fmt.Sprintf("ERROR [%d:%d]: %s", e.Line, e.Column, e.Message)
@@ -269,6 +277,10 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 		return i.evalPrefixExpression(node, env)
 	case *parser.ArrayLiteral:
 		return i.evalArrayLiteral(node, env)
+	case *parser.ArrayIndexExpression:
+		return i.evalArrayIndexExpression(node, env)
+	case *parser.ForStatement:
+		return i.evalForStatement(node, env)
 	default:
 		return newError("unknown node type %T", node)
 	}
@@ -319,6 +331,31 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 		}
 		return val
 	}
+	if node.Operator == "+=" {
+		ident, ok := node.Left.(*parser.Identifier)
+		if !ok {
+			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to non-identifier")
+		}
+		val := i.Eval(node.Right, env)
+		if isError(val) {
+			return val
+		}
+		if !ok {
+			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.Value)
+		}
+		result := i.evalInfixExpression(&parser.InfixExpression{
+			Token:    node.Token,
+			Left:     node.Left,
+			Operator: "+",
+			Right:    node.Right,
+		}, env)
+		if isError(result) {
+			return result
+		}
+		env.Update(ident.Value, result)
+		return result
+
+	}
 	left := i.Eval(node.Left, env)
 	if isError(left) {
 		return left
@@ -326,6 +363,30 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 	right := i.Eval(node.Right, env)
 	if isError(right) {
 		return right
+	}
+	if node.Operator == "-=" {
+		ident, ok := node.Left.(*parser.Identifier)
+		if !ok {
+			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to non-identifier")
+		}
+		val := i.Eval(node.Right, env)
+		if isError(val) {
+			return val
+		}
+		if !ok {
+			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.Value)
+		}
+		result := i.evalInfixExpression(&parser.InfixExpression{
+			Token:    node.Token,
+			Left:     node.Left,
+			Operator: "-",
+			Right:    node.Right,
+		}, env)
+		if isError(result) {
+			return result
+		}
+		env.Update(ident.Value, result)
+		return result
 	}
 	switch {
 
@@ -577,4 +638,47 @@ func (i *Interpreter) evalArrayLiteral(node *parser.ArrayLiteral, env *Environme
 		return elements[0]
 	}
 	return &Array{Elements: elements}
+}
+func (i *Interpreter) evalArrayIndexExpression(node *parser.ArrayIndexExpression, env *Environment) Object {
+	arr := i.Eval(node.Array, env)
+	if isError(arr) {
+		return arr
+	}
+	index := i.Eval(node.Index, env)
+	if isError(index) {
+		return index
+	}
+	if arr.Type() != ARRAY_OBJ || index.Type() != INTEGER_OBJ {
+		return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", arr.Type())
+	}
+	idx := index.(*Integar).Value
+	if idx < 0 || idx >= int64(len(arr.(*Array).Elements)) {
+		return newErrorAt(node.Token.Line, node.Token.Column,
+			"index out of bounds: index %d, length %d", idx, len(arr.(*Array).Elements))
+	}
+	return arr.(*Array).Elements[idx]
+}
+func (i *Interpreter) evalForStatement(node *parser.ForStatement, env *Environment) Object {
+	for {
+		con := i.Eval(node.Condition, env)
+		if isError(con) {
+			return con
+		}
+		if !isTruthy(con) {
+			break
+		}
+		result := i.Eval(node.Body, env)
+		if isError(result) {
+			return result
+		}
+		switch result.(type) {
+		case *ContinueSignal:
+			continue
+		case *BreakSignal:
+			break
+		case *ReturnValue:
+			return result
+		}
+	}
+	return NULL
 }

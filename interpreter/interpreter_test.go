@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/codetesla51/golexer/golexer"
@@ -465,6 +466,70 @@ func TestAndOr(t *testing.T) {
 
 			if result.String() != tc.expected {
 				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+func TestArrayIndexExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"let arr = [1, 2, 3]; arr[0]", int64(1)},
+		{"let arr = [1, 2, 3]; arr[1]", int64(2)},
+		{"let arr = [1, 2, 3]; arr[2]", int64(3)},
+		{"let arr = [1, 2, 3]; arr[0] + arr[1]", int64(3)},
+		{"let arr = [1, 2, 3]; arr[1] * arr[2]", int64(6)},
+		{"let i = 0; let arr = [1, 2, 3]; arr[i]", int64(1)},
+		{"let arr = [10, 20, 30]; arr[2] - arr[0]", int64(20)},
+		{"let arr = [1, 2, 3]; arr[-1]", "index out of bounds: index -1, length 3"},
+		{"let arr = [1, 2, 3]; arr[3]", "index out of bounds: index 3, length 3"},
+		{"let arr = [1, 2, 3]; arr[100]", "index out of bounds: index 100, length 3"},
+		{"let arr = [\"a\", \"b\", \"c\"]; arr[0]", "a"},
+		{"let arr = [true, false, true]; arr[1]", false},
+		{"let arr = [1, 2, 3]; let i = 2; arr[i]", int64(3)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			lexer := golexer.NewLexerWithConfig(tt.input, "tokens.json")
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			inter := NewInterpreter()
+			result := inter.Eval(program, inter.Env)
+
+			switch expected := tt.expected.(type) {
+			case int64:
+				intObj, ok := result.(*Integar)
+				if !ok {
+					t.Fatalf("expected INTEGER, got %T (%s)", result, result.String())
+				}
+				if intObj.Value != expected {
+					t.Errorf("expected %d, got %d", expected, intObj.Value)
+				}
+			case string:
+				errObj, ok := result.(*Error)
+				if ok {
+					if !strings.Contains(errObj.Message, expected) {
+						t.Errorf("expected error containing %q, got %q", expected, errObj.Message)
+					}
+					return
+				}
+				strObj, ok := result.(*String)
+				if !ok {
+					t.Fatalf("expected STRING, got %T (%s)", result, result.String())
+				}
+				if strObj.Value != expected {
+					t.Errorf("expected %q, got %q", expected, strObj.Value)
+				}
+			case bool:
+				boolObj, ok := result.(*Bool)
+				if !ok {
+					t.Fatalf("expected BOOLEAN, got %T (%s)", result, result.String())
+				}
+				if boolObj.Value != expected {
+					t.Errorf("expected %t, got %t", expected, boolObj.Value)
+				}
 			}
 		})
 	}
