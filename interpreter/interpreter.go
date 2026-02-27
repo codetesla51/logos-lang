@@ -13,7 +13,7 @@ type ObjectType string
 type BuiltinFunc func(args ...Object) Object
 
 const (
-	INTEGER_OBJ      = "INTEGER"
+	INTEGER_OBJ      = "Integer"
 	FLOAT_OBJ        = "FLOAT"
 	BOOLEAN_OBJ      = "BOOLEAN"
 	NULL_OBJ         = "NULL"
@@ -46,7 +46,7 @@ type Environment struct {
 type Interpreter struct {
 	Env *Environment
 }
-type Integar struct {
+type Integer struct {
 	Value int64
 }
 type Float struct {
@@ -86,11 +86,11 @@ type Table struct {
 	Pairs map[string]Object
 }
 
-func (i *Integar) Type() ObjectType {
+func (i *Integer) Type() ObjectType {
 	return INTEGER_OBJ
 
 }
-func (i *Integar) String() string {
+func (i *Integer) String() string {
 	var out strings.Builder
 	out.WriteString(fmt.Sprintf("%d", i.Value))
 	return out.String()
@@ -261,7 +261,7 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 	case *parser.ExpressionStatement:
 		return i.Eval(node.Expression, env)
 	case *parser.IntegerLiteral:
-		return &Integar{Value: node.Value}
+		return &Integer{Value: node.Value}
 	case *parser.FloatLiteral:
 		return &Float{Value: node.Value}
 	case *parser.BooleanLiteral:
@@ -456,25 +456,25 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 	}
 }
 func (i *Interpreter) evalIntegerInfixExpression(operator string, left, right Object, line, col int) Object {
-	rightVal := right.(*Integar).Value
-	leftVal := left.(*Integar).Value
+	rightVal := right.(*Integer).Value
+	leftVal := left.(*Integer).Value
 	switch operator {
 	case "+":
-		return &Integar{Value: leftVal + rightVal}
+		return &Integer{Value: leftVal + rightVal}
 	case "-":
-		return &Integar{Value: leftVal - rightVal}
+		return &Integer{Value: leftVal - rightVal}
 	case "*":
-		return &Integar{Value: leftVal * rightVal}
+		return &Integer{Value: leftVal * rightVal}
 	case "/":
 		if rightVal == 0 {
 			return newErrorAt(line, col, "division by zero")
 		}
-		return &Integar{Value: leftVal / rightVal}
+		return &Integer{Value: leftVal / rightVal}
 	case "%":
 		if rightVal == 0 {
 			return newErrorAt(line, col, "modulo by zero")
 		}
-		return &Integar{Value: leftVal % rightVal}
+		return &Integer{Value: leftVal % rightVal}
 	case "==":
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
@@ -654,8 +654,8 @@ func (i *Interpreter) evalBangOperatorExpression(right Object) Object {
 	return nativeBoolToBooleanObject(!isTruthy(right))
 }
 func (i *Interpreter) evalMinusPrefixOperatorExpression(right Object) Object {
-	rightVal := right.(*Integar).Value
-	return &Integar{Value: -rightVal}
+	rightVal := right.(*Integer).Value
+	return &Integer{Value: -rightVal}
 }
 func (i *Interpreter) evalMinusPrefixOperatorExpressionFloat(right Object) Object {
 	rightVal := right.(*Float).Value
@@ -683,7 +683,7 @@ func (i *Interpreter) evalArrayIndexExpression(node *parser.ArrayIndexExpression
 			return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
 		}
 
-		idx := index.(*Integar).Value
+		idx := index.(*Integer).Value
 		if idx < 0 || idx >= int64(len(object.(*Array).Elements)) {
 			return newErrorAt(node.Token.Line, node.Token.Column,
 				"index out of bounds: index %d, length %d", idx, len(object.(*Array).Elements))

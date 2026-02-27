@@ -1,4 +1,6 @@
-use "math"
-print(add(10, 5))
-print(sub(10, 5))
-print(mul(10, 5))
+let fileName = read("main.go")
+if fileName == null{
+    print("error reading file")
+}
+sleep(2000)
+print(upper(fileName))

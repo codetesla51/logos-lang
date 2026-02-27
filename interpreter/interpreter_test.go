@@ -500,7 +500,7 @@ func TestArrayIndexExpression(t *testing.T) {
 
 			switch expected := tt.expected.(type) {
 			case int64:
-				intObj, ok := result.(*Integar)
+				intObj, ok := result.(*Integer)
 				if !ok {
 					t.Fatalf("expected INTEGER, got %T (%s)", result, result.String())
 				}
