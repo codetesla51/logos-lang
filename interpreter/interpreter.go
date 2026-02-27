@@ -2,8 +2,10 @@ package interpreter
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/codetesla51/golexer/golexer"
 	"github.com/codetesla51/logos/parser"
 )
 
@@ -79,6 +81,9 @@ type String struct {
 }
 type Builtin struct {
 	Fn BuiltinFunc
+}
+type Table struct {
+	Pairs map[string]Object
 }
 
 func (i *Integar) Type() ObjectType {
@@ -177,6 +182,17 @@ func (bi *Builtin) Type() ObjectType {
 func (bi *Builtin) String() string {
 	return "builtin function"
 }
+func (t *Table) Type() ObjectType { return TABLE_OBJ }
+func (t *Table) String() string {
+	var out strings.Builder
+	out.WriteString("table{")
+	for k, v := range t.Pairs {
+		out.WriteString(k + ": " + v.String() + ", ")
+	}
+	out.WriteString("}")
+	return out.String()
+}
+
 func NewEnvironment() *Environment {
 	return &Environment{store: make(map[string]Object), outer: nil}
 }
@@ -281,7 +297,20 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 		return i.evalArrayIndexExpression(node, env)
 	case *parser.ForStatement:
 		return i.evalForStatement(node, env)
+	case *parser.BreakStatement:
+		return &BreakSignal{}
+	case *parser.ContinueStatement:
+		return &ContinueSignal{}
+	case *parser.SwitchStatement:
+		return i.evalSwitchStatement(node, env)
+	case *parser.ForInStatement:
+		return i.evalForInStatement(node, env)
+	case *parser.TableLiteral:
+		return i.evalTableLiteral(node, env)
+	case *parser.UseStatement:
+		return i.evalUseStatement(node, env)
 	default:
+		fmt.Printf("unknown node: %T %+v\n", node, node)
 		return newError("unknown node type %T", node)
 	}
 }
@@ -341,7 +370,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 			return val
 		}
 		if !ok {
-			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.Value)
+			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.String())
 		}
 		result := i.evalInfixExpression(&parser.InfixExpression{
 			Token:    node.Token,
@@ -374,7 +403,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 			return val
 		}
 		if !ok {
-			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.Value)
+			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.String())
 		}
 		result := i.evalInfixExpression(&parser.InfixExpression{
 			Token:    node.Token,
@@ -528,7 +557,7 @@ func (i *Interpreter) evalBlockStatment(block *parser.BlockStatement, env *Envir
 		result = i.Eval(statement, env)
 		if result != nil {
 			rt := result.Type()
-			if rt == RETURN_VALUE_OBJ || rt == ERROR_OBJ {
+			if rt == RETURN_VALUE_OBJ || rt == ERROR_OBJ || rt == CONTINUE_OBJ || rt == BREAK_OBJ {
 				return result
 			}
 		}
@@ -640,33 +669,51 @@ func (i *Interpreter) evalArrayLiteral(node *parser.ArrayLiteral, env *Environme
 	return &Array{Elements: elements}
 }
 func (i *Interpreter) evalArrayIndexExpression(node *parser.ArrayIndexExpression, env *Environment) Object {
-	arr := i.Eval(node.Array, env)
-	if isError(arr) {
-		return arr
+	object := i.Eval(node.Array, env)
+	if isError(object) {
+		return object
 	}
 	index := i.Eval(node.Index, env)
 	if isError(index) {
 		return index
 	}
-	if arr.Type() != ARRAY_OBJ || index.Type() != INTEGER_OBJ {
-		return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", arr.Type())
+	switch obj := object.(type) {
+	case *Array:
+		if object.Type() != ARRAY_OBJ || index.Type() != INTEGER_OBJ {
+			return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
+		}
+
+		idx := index.(*Integar).Value
+		if idx < 0 || idx >= int64(len(object.(*Array).Elements)) {
+			return newErrorAt(node.Token.Line, node.Token.Column,
+				"index out of bounds: index %d, length %d", idx, len(object.(*Array).Elements))
+		}
+
+		return object.(*Array).Elements[idx]
+	case *Table:
+		key := fmt.Sprintf("%s:%s", index.Type(), index.String())
+		val, ok := obj.Pairs[key]
+		if !ok {
+			return NULL
+		}
+		return val
+	default:
+		return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
 	}
-	idx := index.(*Integar).Value
-	if idx < 0 || idx >= int64(len(arr.(*Array).Elements)) {
-		return newErrorAt(node.Token.Line, node.Token.Column,
-			"index out of bounds: index %d, length %d", idx, len(arr.(*Array).Elements))
-	}
-	return arr.(*Array).Elements[idx]
 }
+
 func (i *Interpreter) evalForStatement(node *parser.ForStatement, env *Environment) Object {
 	for {
-		con := i.Eval(node.Condition, env)
-		if isError(con) {
-			return con
+		if node.Condition != nil {
+			con := i.Eval(node.Condition, env)
+			if isError(con) {
+				return con
+			}
+			if !isTruthy(con) {
+				break
+			}
 		}
-		if !isTruthy(con) {
-			break
-		}
+
 		result := i.Eval(node.Body, env)
 		if isError(result) {
 			return result
@@ -675,10 +722,160 @@ func (i *Interpreter) evalForStatement(node *parser.ForStatement, env *Environme
 		case *ContinueSignal:
 			continue
 		case *BreakSignal:
-			break
+			return NULL
 		case *ReturnValue:
+			return result
+		case *Error:
 			return result
 		}
 	}
 	return NULL
+}
+
+func (i *Interpreter) evalSwitchStatement(node *parser.SwitchStatement, env *Environment) Object {
+	cond := i.Eval(node.Expression, env)
+	if isError(cond) {
+		return cond
+	}
+	if node.Cases != nil {
+		for _, cs := range node.Cases {
+			result := i.evalSwitchCase(&cs, env, cond)
+			if result != nil {
+				return result
+			}
+		}
+	}
+
+	if node.DefaultCase != nil {
+		result := i.Eval(node.DefaultCase, env)
+		if isError(result) {
+			return result
+		}
+		return result
+	}
+	return NULL
+}
+func (i *Interpreter) evalSwitchCase(node *parser.SwitchCase, env *Environment, cond Object) Object {
+	caseVal := i.Eval(node.Condition, env)
+	if isError(caseVal) {
+		return caseVal
+	}
+	if cond.String() == caseVal.String() {
+		result := i.Eval(node.Body, env)
+		if isError(result) {
+			return result
+		}
+		switch result.(type) {
+		case *ContinueSignal:
+			return result
+		case *BreakSignal:
+			return NULL
+		case *ReturnValue:
+			return result
+		case *Error:
+			return result
+		}
+		return result
+	}
+	return nil
+}
+func (i *Interpreter) evalForInStatement(node *parser.ForInStatement, env *Environment) Object {
+	iterable := i.Eval(node.Collection, env)
+	if isError(iterable) {
+		return iterable
+	}
+
+	switch obj := iterable.(type) {
+	case *Array:
+		for _, e := range obj.Elements {
+			env.Set(node.Item.Value, e)
+			result := i.Eval(node.Body, env)
+			if isError(result) {
+				return result
+			}
+			switch result.(type) {
+			case *ContinueSignal:
+				continue
+			case *BreakSignal:
+				return NULL
+			case *ReturnValue:
+				return result
+			}
+		}
+	case *Table:
+		for k, v := range obj.Pairs {
+			parts := strings.SplitN(k, ":", 2)
+			displayKey := parts[1]
+			env.Set(node.Item.Value, &Array{Elements: []Object{&String{Value: displayKey}, v}})
+			result := i.Eval(node.Body, env)
+			if isError(result) {
+				return result
+			}
+			switch result.(type) {
+			case *ContinueSignal:
+				continue
+			case *BreakSignal:
+				return NULL
+			case *ReturnValue:
+				return result
+			}
+		}
+	case *String:
+		for _, ch := range obj.Value {
+			env.Set(node.Item.Value, &String{Value: string(ch)})
+			result := i.Eval(node.Body, env)
+			if isError(result) {
+				return result
+			}
+			switch result.(type) {
+			case *ContinueSignal:
+				continue
+			case *BreakSignal:
+				return NULL
+			case *ReturnValue:
+				return result
+			}
+		}
+	default:
+		return newErrorAt(node.Token.Line, node.Token.Column, "cannot iterate over non-iterable type: %s", iterable.Type())
+	}
+
+	return NULL
+}
+
+func (i *Interpreter) evalTableLiteral(node *parser.TableLiteral, env *Environment) Object {
+	table := &Table{Pairs: make(map[string]Object)}
+	for _, p := range node.Pairs {
+		evaluatedKey := i.Eval(p.Key, env)
+		if isError(evaluatedKey) {
+			return evaluatedKey
+		}
+		evaluatedValue := i.Eval(p.Value, env)
+		if isError(evaluatedValue) {
+			return evaluatedValue
+		}
+		key := fmt.Sprintf("%s:%s", evaluatedKey.Type(), evaluatedKey.String())
+		table.Pairs[key] = evaluatedValue
+	}
+
+	return table
+}
+func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environment) Object {
+	fileName := node.FileName.Value + ".lgs"
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return newErrorAt(node.FileName.Token.Line, node.FileName.Token.Column,
+			"module not found: %s", fileName)
+	}
+	lexer := golexer.NewLexerWithConfig(string(data), "../tokens.json")
+	p := parser.NewParser(lexer)
+	program := p.Parse()
+	if len(p.Errors()) != 0 {
+		for _, e := range p.Errors() {
+			fmt.Println(e)
+		}
+		return newErrorAt(node.FileName.Token.Line, node.FileName.Token.Column,
+			"failed to parse module: %s", fileName)
+	}
+	return i.Eval(program, env)
 }

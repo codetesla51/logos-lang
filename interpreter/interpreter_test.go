@@ -534,3 +534,303 @@ func TestArrayIndexExpression(t *testing.T) {
 		})
 	}
 }
+func TestForLoop(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// infinite loop with break
+		{"let x = 0\nfor {\nif x >= 5 { break }\nx += 1\n}\nx", "5", "infinite loop breaks correctly"},
+		{"let x = 0\nfor {\nif x >= 3 { break }\nx += 1\n}\nx", "3", "infinite loop breaks at 3"},
+
+		// condition loop
+		{"let x = 0\nfor x < 5 {\nx += 1\n}\nx", "5", "condition loop increments to 5"},
+		{"let x = 10\nfor x > 0 {\nx -= 1\n}\nx", "0", "condition loop decrements to 0"},
+
+		// continue
+		{"let x = 0\nlet sum = 0\nfor x < 5 {\nx += 1\nif x == 3 { continue }\nsum += x\n}\nsum", "12", "continue skips iteration"},
+
+		// break early
+		{"let x = 0\nfor x < 100 {\nif x == 5 { break }\nx += 1\n}\nx", "5", "break exits early"},
+
+		// compound assignments
+		{"let x = 0\nfor x < 10 {\nx += 2\n}\nx", "10", "+= in loop"},
+		{"let x = 10\nfor x > 0 {\nx -= 3\n}\nx", "-2", "-= in loop"},
+
+		// return inside loop
+		{"let f = fn() { let x = 0\nfor {\nif x == 3 { return x }\nx += 1\n}\n}\nf()", "3", "return inside loop"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+
+func TestForLoopArrayIndex(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{`let arr = [1, 2, 3, 4, 5]; let i = 0; let sum = 0; for i < 5 { sum += arr[i]; i += 1 } sum`, "15", "sum array elements"},
+		{`let arr = [10, 20, 30]; let i = 0; for i < 3 { i += 1 } arr[2]`, "30", "index after loop"},
+		{`let arr = [1, 2, 3]; let i = 0; let last = 0; for i < 3 { last = arr[i]; i += 1 } last`, "3", "last element via loop"},
+		{`let arr = [5, 3, 8, 1]; let i = 0; let max = 0; for i < 4 { if arr[i] > max { max = arr[i] } i += 1 } max`, "8", "find max in array"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+
+func TestCompoundAssignments(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{`let x = 5; x += 3; x`, "8", "+= basic"},
+		{`let x = 5; x -= 3; x`, "2", "-= basic"},
+		{`let x = 5; x += 10; x += 5; x`, "20", "+= chained"},
+		{`let x = 10; x -= 3; x -= 2; x`, "5", "-= chained"},
+		{`let x = 0; x += 1; x += 1; x += 1; x`, "3", "+= increments"},
+		// errors
+		{`x += 1`, "ERROR [1:1]: identifier not found: x", "+= on undeclared variable"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+func TestSwitchStatement(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{
+			`let arr = [1, 2, 3]; for l in arr { print(l) }`,
+			"null",
+			"basic for-in",
+		},
+		{
+			`let arr = []; for l in arr { print(l) }`,
+			"null",
+			"empty array",
+		},
+		{
+			`for l in 42 { print(l) }`,
+			"ERROR [1:5]: cannot iterate over non-iterable type: INTEGER",
+			"non-array error",
+		},
+		{
+			`let arr = [1, 2, 3, 4, 5]; for l in arr { if l == 3 { break } print(l) }`,
+			"null",
+			"break stops iteration",
+		},
+		{
+			`let f = fn() { let arr = [1, 2, 3]; for l in arr { if l == 2 { return l } } }; f()`,
+			"2",
+			"return inside for-in",
+		},
+		{
+			`let arr = ["a", "b", "c"]; for l in arr { print(l) }`,
+			"null",
+			"iterate strings",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+func TestTableLiteral(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// basic string key lookup
+		{
+			`let a = table{"name": "uthman"}; a["name"]`,
+			"uthman",
+			"string key lookup",
+		},
+		// integer key lookup
+		{
+			`let a = table{1: "one"}; a[1]`,
+			"one",
+			"integer key lookup",
+		},
+		// no collision between int and string key
+		{
+			`let a = table{1: "int", "1": "str"}; a[1]`,
+			"int",
+			"int and string key no collision",
+		},
+		{
+			`let a = table{1: "int", "1": "str"}; a["1"]`,
+			"str",
+			"string key no collision",
+		},
+		// missing key returns null
+		{
+			`let a = table{"name": "uthman"}; a["age"]`,
+			"null",
+			"missing key returns null",
+		},
+		// overwrite duplicate key
+		{
+			`let a = table{"name": "uthman", "name": "alice"}; a["name"]`,
+			"alice",
+			"duplicate key overwritten",
+		},
+		// integer value
+		{
+			`let a = table{"age": 20}; a["age"]`,
+			"20",
+			"integer value",
+		},
+		// boolean value
+		{
+			`let a = table{"ok": true}; a["ok"]`,
+			"true",
+			"boolean value",
+		},
+		// multiple keys
+		{
+			`let a = table{"x": 1, "y": 2}; a["y"]`,
+			"2",
+			"multiple keys",
+		},
+		// index non-table with string
+		{
+			`let a = 42; a["key"]`,
+			"ERROR [1:14]: index operator not supported: INTEGER",
+			"index non-table error",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+func TestForInTypes(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// array
+		{
+			`let arr = [1, 2, 3]; for l in arr { print(l) }`,
+			"null",
+			"array iteration",
+		},
+		// string
+		{
+			`let f = fn() { let str = "hi"; for ch in str { return ch } }; f()`,
+			"h",
+			"string iteration returns first char",
+		},
+		// string break
+		{
+			`let str = "hello"; for ch in str { if ch == "l" { break } }`,
+			"null",
+			"string break",
+		},
+		// table keys
+		{
+			`let t = table{"name": "uthman"}; for pair in t { return pair[0] }`,
+			"name",
+			"table key",
+		},
+		// table values
+		{
+			`let f = fn() { let t = table{"name": "uthman"}; for pair in t { return pair[1] } }; f()`,
+			"uthman",
+			"table value",
+		},
+		// non-iterable error
+		{
+			`for l in 42 { print(l) }`,
+			"ERROR [1:5]: cannot iterate over non-iterable type: INTEGER",
+			"non-iterable error",
+		},
+		// empty string
+		{
+			`let str = ""; for ch in str { print(ch) }`,
+			"null",
+			"empty string",
+		},
+		// empty table
+		{
+			`let t = table{}; for pair in t { print(pair[0]) }`,
+			"null",
+			"empty table",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}

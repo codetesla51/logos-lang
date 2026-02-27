@@ -155,8 +155,8 @@ type NullExpression struct {
 }
 type ForInStatement struct {
 	Token      golexer.Token
-	item       *Identifier
-	collection Expression
+	Item       *Identifier
+	Collection Expression
 	Body       *BlockStatement
 }
 type TableLiteral struct {
@@ -167,6 +167,7 @@ type TablePair struct {
 	Key   Expression
 	Value Expression
 }
+
 type UseStatement struct {
 	token    golexer.Token
 	FileName *StringLiteral
@@ -293,8 +294,10 @@ func (fs *ForStatement) TokenLiteral() string { return fs.Token.Literal }
 func (fs *ForStatement) String() string {
 	var out strings.Builder
 	out.WriteString(fs.TokenLiteral())
-	out.WriteString(" ")
-	out.WriteString(fs.Condition.String())
+	if fs.Condition != nil {
+		out.WriteString(" ")
+		out.WriteString(fs.Condition.String())
+	}
 	out.WriteString(" ")
 	out.WriteString(fs.Body.String())
 	return out.String()
@@ -446,9 +449,9 @@ func (fi *ForInStatement) TokenLiteral() string { return fi.Token.Literal }
 func (fi *ForInStatement) String() string {
 	var out strings.Builder
 	out.WriteString("for ")
-	out.WriteString(fi.item.String())
+	out.WriteString(fi.Item.String())
 	out.WriteString(" in ")
-	out.WriteString(fi.collection.String())
+	out.WriteString(fi.Collection.String())
 	out.WriteString(" ")
 	out.WriteString(fi.Body.String())
 	return out.String()
@@ -478,7 +481,10 @@ func (us *UseStatement) statmentNode()        {}
 func (us *UseStatement) TokenLiteral() string { return us.token.Literal }
 func (us *UseStatement) String() string {
 	var out strings.Builder
+	out.WriteString(us.TokenLiteral())
+	out.WriteString("\"")
 	out.WriteString(us.FileName.Value)
+	out.WriteString("\"")
 	return out.String()
 }
 
@@ -764,16 +770,22 @@ func (p *Parser) parseIfExpression() *IfExpression {
 func (p *Parser) parseForStatement() Statement {
 	stmt := &ForStatement{Token: p.curToken}
 	p.nextToken()
+
 	if p.curTokenIs(golexer.IDENT) && p.peekTokenIs(IN) {
 		return p.parseForInStatement()
 	}
+
 	if !p.curTokenIs(golexer.LBRACE) {
 		stmt.Condition = p.parseExpression(LOWEST)
 	}
-	if !p.expectPeek(golexer.LBRACE) {
-		p.synchronize()
-		return nil
+
+	if !p.curTokenIs(golexer.LBRACE) {
+		if !p.expectPeek(golexer.LBRACE) {
+			p.synchronize()
+			return nil
+		}
 	}
+
 	stmt.Body = p.parseBlockStatement()
 	return stmt
 }
@@ -1049,10 +1061,10 @@ func (p *Parser) parseNullExpression() Expression {
 }
 func (p *Parser) parseForInStatement() Statement {
 	stmt := &ForInStatement{Token: p.curToken}
-	stmt.item = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	stmt.Item = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
 	p.nextToken()
 	p.nextToken()
-	stmt.collection = p.parseExpression(LOWEST)
+	stmt.Collection = p.parseExpression(LOWEST)
 	if !p.expectPeek(golexer.LBRACE) {
 		p.synchronize()
 		return nil
@@ -1086,7 +1098,7 @@ func (p *Parser) parseTableLiteral() Expression {
 }
 func (p *Parser) parseUseStament() *UseStatement {
 	stmt := &UseStatement{token: p.curToken}
-	if !p.peekTokenIs(golexer.STRING) {
+	if !p.expectPeek(golexer.STRING) {
 		p.synchronize()
 		return nil
 	}

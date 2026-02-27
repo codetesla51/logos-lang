@@ -1,0 +1,3 @@
+let add = fn(a, b) { return a + b }
+let sub = fn(a, b) { return a - b }
+let mul = fn(a, b) { return a * b }

@@ -1040,33 +1040,45 @@ func TestSwitchStatements(t *testing.T) {
 		input    string
 		expected string
 	}{
+		// default only
 		{
-			`switch x { case 1 { 10 } }`,
-			`switch x {case 1 {10}}`,
+			`switch x { default { 0 } }`,
+			`switch x {default {0}}`,
 		},
+		// multiple cases
 		{
 			`switch x { case 1 { 10 } case 2 { 20 } }`,
 			`switch x {case 1 {10}case 2 {20}}`,
 		},
-		{
-			`switch x { case 1 { 10 } default { 0 } }`,
-			`switch x {case 1 {10}default {0}}`,
-		},
+		// cases + default
 		{
 			`switch x { case 1 { 10 } case 2 { 20 } default { 0 } }`,
 			`switch x {case 1 {10}case 2 {20}default {0}}`,
 		},
+		// switch on expression
 		{
 			`switch x + 1 { case 2 { 10 } default { 0 } }`,
 			`switch (x + 1) {case 2 {10}default {0}}`,
 		},
+		// switch on string
 		{
-			`switch x { case true { 1 } case false { 0 } }`,
-			`switch x {case true {1}case false {0}}`,
+			`switch "hello" { case "hello" { "matched" } }`,
+			`switch "hello" {case "hello" {"matched"}}`,
 		},
+		// break inside case
 		{
-			`switch x { default { 0 } }`,
-			`switch x {default {0}}`,
+			`switch x { case 1 { break } }`,
+			`switch x {case 1 {break;}}`,
+		},
+		// nested switch
+		{
+			`switch x { case 1 { switch y { case 2 { 42 } } } }`,
+			`switch x {case 1 {switch y {case 2 {42}}}}`,
+		},
+		// switch inside for
+		{
+			`for { switch x { case 1 { break } } }`,
+			`for {switch x {case 1 {break;}}}`,
 		},
 	}
 	for _, tt := range testCases {
@@ -1154,18 +1166,42 @@ func TestErrorRecovery(t *testing.T) {
 	}
 }
 func TestUse(t *testing.T) {
-	input := "use \"file.lgs\""
-	expected := "use\"file.lgs\""
-	l := golexer.NewLexerWithConfig(input, "../tokens.json")
-	p := NewParser(l)
-	program := p.Parse()
-	if len(p.Errors()) != 0 {
-		t.Fatalf("input=%q: parser has %d errors: %v", input, len(p.Errors()), p.Errors())
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{
+			`use "file.lgs"`,
+			`use"file.lgs"`,
+			"basic use",
+		},
+		{
+			`use "math"`,
+			`use"math"`,
+			"use without extension",
+		},
+		{
+			`use "lib/utils"`,
+			`use"lib/utils"`,
+			"use with path",
+		},
 	}
-	if program == nil {
-		t.Fatalf("input=%q: Parse() returned nil", input)
-	}
-	if program.String() != expected {
-		t.Fatalf("input=%q: expected=%q, got=%q", input, expected, program.String())
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			p := NewParser(l)
+			program := p.Parse()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
+			}
+			if program == nil {
+				t.Fatalf("input=%q: Parse() returned nil", tc.input)
+			}
+			if program.String() != tc.expected {
+				t.Fatalf("input=%q: expected=%q, got=%q", tc.input, tc.expected, program.String())
+			}
+		})
 	}
 }

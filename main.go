@@ -49,6 +49,7 @@ func runFile(path string) {
 		fmt.Fprintln(os.Stderr, result.String())
 	}
 }
+
 func runREPL() {
 	scanner := bufio.NewScanner(os.Stdin)
 	inter := interpreter.NewInterpreter()
