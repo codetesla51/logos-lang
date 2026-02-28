@@ -990,3 +990,84 @@ func TestSwitchStatementEval(t *testing.T) {
 		})
 	}
 }
+func TestSpawnEval(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// spawn block
+		{
+			`let x = 0
+			spawn {
+				print(x)
+			}`,
+			"null",
+			"spawn block basic",
+		},
+		{
+			`spawn {
+				print("a")
+				print("b")
+				print("c")
+			}`,
+			"null",
+			"spawn block multiple statements",
+		},
+		{
+			`spawn {
+				let x = 1
+				let y = 2
+			}`,
+			"null",
+			"spawn block with let",
+		},
+		{
+			`spawn {}`,
+			"null",
+			"spawn empty block",
+		},
+		// spawn for
+		{
+			`spawn for item in [1, 2, 3] {
+				print(item)
+			}`,
+			"null",
+			"spawn for basic",
+		},
+		{
+			`spawn for item in [] {
+				print(item)
+			}`,
+			"null",
+			"spawn for empty array",
+		},
+		{
+			`spawn for item in ["a", "b", "c"] {
+				print(item)
+			}`,
+			"null",
+			"spawn for strings",
+		},
+		// errors
+		{
+			`spawn for item in 42 {
+        print(item)
+    }`,
+			"ERROR [1:7]: spawn for-in only supports arrays, got: INTEGER",
+			"spawn for non array error",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			p := parser.NewParser(l)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}

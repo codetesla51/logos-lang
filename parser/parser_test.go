@@ -1246,3 +1246,44 @@ func TestDotExpression(t *testing.T) {
 		})
 	}
 }
+func TestSpawnStatement(t *testing.T) {
+	testCase := []struct {
+		input  string
+		expect string
+		decs   string
+	}{
+		{"spawn {}", "spawn{}", "spawn empty block"},
+		{"spawn { run() }", "spawn{run()}", "spawn single call"},
+		{"spawn { httpGet(url) }", "spawn{httpGet(url)}", "spawn http call"},
+		{"spawn { print(x) }", "spawn{print(x)}", "spawn print"},
+		{"spawn { let x = 1 }", "spawn{let x = 1;}", "spawn let statement"},
+		{"spawn { httpGet(url) fileCopy(src, dst) }", "spawn{httpGet(url);fileCopy(src, dst)}", "spawn multiple statements"},
+		{"spawn { if x { print(x) } }", "spawn{ifx{print(x)}}", "spawn with if"},
+		{"spawn { for i in items { print(i) } }", "spawn{for i in items {print(i)}}", "spawn with for in"},
+		// nested spawn
+		{"spawn { spawn { print(x) } }", "spawn{spawn{print(x)}}", "nested spawn"},
+
+		// spawn with return
+		{"spawn { return x }", "spawn{return x;}", "spawn with return"},
+
+		// empty collection
+		{"spawn for i in [] {}", "spawn for i in [] {}", "spawn for empty array"},
+	}
+	for _, tc := range testCase {
+		t.Run(tc.decs, func(t *testing.T) {
+			l := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			p := NewParser(l)
+			program := p.Parse()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
+			}
+			if program == nil {
+				t.Fatalf("input=%q: Parse() returned nil", tc.input)
+			}
+			if program.String() != tc.expect {
+				t.Fatalf("input=%q: expected=%q, got=%q", tc.input, tc.expect, program.String())
+			}
+		})
+	}
+
+}

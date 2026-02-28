@@ -32,6 +32,7 @@ const (
 	IN      = golexer.TokenType("IN")
 	TABLE   = golexer.TokenType("TABLE")
 	USE     = golexer.TokenType("USE")
+	SPAWN   = golexer.TokenType("SPAWN")
 )
 
 // Node is the base interface for all AST nodes.
@@ -177,6 +178,16 @@ type DotExpression struct {
 	Token golexer.Token
 	Left  Expression
 	Right *Identifier
+}
+type SpawnStatment struct {
+	Token golexer.Token
+	Block *BlockStatement
+}
+type SpawnForInStatement struct {
+	Token      golexer.Token
+	Item       *Identifier
+	Collection Expression
+	Body       *BlockStatement
 }
 type PrefixParsefn func() Expression
 type InfixParsefn func(Expression) Expression
@@ -506,6 +517,27 @@ func (de *DotExpression) String() string {
 	out.WriteString(")")
 	return out.String()
 }
+func (sp *SpawnStatment) statmentNode()        {}
+func (sp *SpawnStatment) TokenLiteral() string { return sp.Token.Literal }
+func (sp *SpawnStatment) String() string {
+	var out strings.Builder
+	out.WriteString(sp.Token.Literal)
+	out.WriteString(sp.Block.String())
+	return out.String()
+}
+func (sfi *SpawnForInStatement) statmentNode()        {}
+func (sfi *SpawnForInStatement) TokenLiteral() string { return sfi.Token.Literal }
+func (sfi *SpawnForInStatement) String() string {
+	var out strings.Builder
+	out.WriteString("spawn ")
+	out.WriteString("for ")
+	out.WriteString(sfi.Item.String())
+	out.WriteString(" in ")
+	out.WriteString(sfi.Collection.String())
+	out.WriteString(" ")
+	out.WriteString(sfi.Body.String())
+	return out.String()
+}
 
 // Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
@@ -739,6 +771,8 @@ func (p *Parser) parseStatment() Statement {
 		return p.parseSwitchStatement()
 	case USE:
 		return p.parseUseStament()
+	case SPAWN:
+		return p.parseSpawnStatment()
 
 	default:
 		return p.parseExpressionStatment()
@@ -1179,4 +1213,32 @@ func (p *Parser) parseDotExpression(left Expression) Expression {
 
 	exp.Right = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
 	return exp
+}
+func (p *Parser) parseSpawnStatment() Statement {
+	stmt := &SpawnStatment{Token: p.curToken}
+	p.nextToken()
+	if p.curTokenIs(golexer.FOR) {
+		return p.parseSForInStatement()
+	}
+	if !p.curTokenIs(golexer.LBRACE) {
+		return nil
+	}
+	stmt.Block = p.parseBlockStatement()
+	return stmt
+
+}
+func (p *Parser) parseSForInStatement() Statement {
+	stmt := &SpawnForInStatement{Token: p.curToken}
+	p.nextToken()
+	stmt.Item = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	p.nextToken()
+	p.nextToken()
+	stmt.Collection = p.parseExpression(LOWEST)
+	if !p.expectPeek(golexer.LBRACE) {
+		p.synchronize()
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
 }

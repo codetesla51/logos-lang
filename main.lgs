@@ -1,2 +1,6 @@
-use "std/math"
-print(mathFib(10))
+let res = httpGet("https://api.example.com/data")
+if res.ok {
+    print(res.value.body)
+} else {
+    print(res.error)
+}

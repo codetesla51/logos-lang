@@ -1650,7 +1650,6 @@ func init() {
 	// HTTP
 	// -------------------------
 
-	// httpGet(url) - sends a GET request, returns table {status, body}
 	builtins["httpGet"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -1662,21 +1661,20 @@ func init() {
 			}
 			resp, err := http.Get(url.Value)
 			if err != nil {
-				return NULL
+				return errResult("httpGet failed: %s", err.Error())
 			}
 			defer resp.Body.Close()
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return NULL
+				return errResult("httpGet failed to read body: %s", err.Error())
 			}
 			pairs := map[string]Object{}
 			pairs["STRING:body"] = &String{Value: string(body)}
 			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return &Table{Pairs: pairs}
+			return okResult(&Table{Pairs: pairs})
 		},
 	}
 
-	// httpPost(url, body) - sends a POST request with JSON body, returns table {status, body}
 	builtins["httpPost"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
@@ -1692,21 +1690,20 @@ func init() {
 			}
 			resp, err := http.Post(url.Value, "application/json", strings.NewReader(body.Value))
 			if err != nil {
-				return NULL
+				return errResult("httpPost failed: %s", err.Error())
 			}
 			defer resp.Body.Close()
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return NULL
+				return errResult("httpPost failed to read body: %s", err.Error())
 			}
 			pairs := map[string]Object{}
 			pairs["STRING:body"] = &String{Value: string(respBody)}
 			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return &Table{Pairs: pairs}
+			return okResult(&Table{Pairs: pairs})
 		},
 	}
 
-	// httpPatch(url, body) - sends a PATCH request with JSON body, returns table {status, body}
 	builtins["httpPatch"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 2 {
@@ -1722,27 +1719,26 @@ func init() {
 			}
 			req, err := http.NewRequest("PATCH", url.Value, strings.NewReader(body.Value))
 			if err != nil {
-				return NULL
+				return errResult("httpPatch failed to build request: %s", err.Error())
 			}
 			req.Header.Set("Content-Type", "application/json")
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				return NULL
+				return errResult("httpPatch failed: %s", err.Error())
 			}
 			defer resp.Body.Close()
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return NULL
+				return errResult("httpPatch failed to read body: %s", err.Error())
 			}
 			pairs := map[string]Object{}
 			pairs["STRING:body"] = &String{Value: string(respBody)}
 			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return &Table{Pairs: pairs}
+			return okResult(&Table{Pairs: pairs})
 		},
 	}
 
-	// httpDelete(url) - sends a DELETE request, returns table {status, body}
 	builtins["httpDelete"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -1754,22 +1750,22 @@ func init() {
 			}
 			req, err := http.NewRequest("DELETE", url.Value, nil)
 			if err != nil {
-				return NULL
+				return errResult("httpDelete failed to build request: %s", err.Error())
 			}
 			client := &http.Client{}
 			resp, err := client.Do(req)
 			if err != nil {
-				return NULL
+				return errResult("httpDelete failed: %s", err.Error())
 			}
 			defer resp.Body.Close()
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return NULL
+				return errResult("httpDelete failed to read body: %s", err.Error())
 			}
 			pairs := map[string]Object{}
 			pairs["STRING:body"] = &String{Value: string(respBody)}
 			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return &Table{Pairs: pairs}
+			return okResult(&Table{Pairs: pairs})
 		},
 	}
 }

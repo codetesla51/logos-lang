@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/codetesla51/golexer/golexer"
 	"github.com/codetesla51/logos/parser"
@@ -345,6 +346,10 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 		return i.evalUseStatement(node, env)
 	case *parser.DotExpression:
 		return i.evalDotExpression(node, env)
+	case *parser.SpawnStatment:
+		return i.evalSpawnStatment(node, env)
+	case *parser.SpawnForInStatement:
+		return i.evalSpawnForInStatement(node, env)
 	default:
 		fmt.Printf("unknown node: %T %+v\n", node, node)
 		return newError("unknown node type %T", node)
@@ -1001,4 +1006,45 @@ func (i *Interpreter) evalDotExpression(node *parser.DotExpression, env *Environ
 		return i.fileError(node.Token.Line, node.Token.Column,
 			"dot operator not supported on type: %s", left.Type())
 	}
+}
+func (i *Interpreter) evalSpawnStatment(node *parser.SpawnStatment, env *Environment) Object {
+	var wg sync.WaitGroup
+	for _, stmt := range node.Block.Statements {
+		wg.Add(1)
+		go func(s parser.Statement) {
+			defer wg.Done()
+			localEnv := NewEnclosedEnvironment(env)
+			result := i.Eval(s, localEnv)
+			if isError(result) {
+				fmt.Printf("error in spawned goroutine: %s\n", result.String())
+			}
+		}(stmt)
+	}
+	wg.Wait()
+	return NULL
+}
+func (i *Interpreter) evalSpawnForInStatement(node *parser.SpawnForInStatement, env *Environment) Object {
+	iterable := i.Eval(node.Collection, env)
+	if isError(iterable) {
+		return iterable
+	}
+	arr, ok := iterable.(*Array)
+	if !ok {
+		return i.fileError(node.Token.Line, node.Token.Column, "spawn for-in only supports arrays, got: %s", iterable.Type())
+	}
+	var wg sync.WaitGroup
+	for _, e := range arr.Elements {
+		wg.Add(1)
+		go func(elem Object) {
+			defer wg.Done()
+			localEnv := NewEnclosedEnvironment(env)
+			localEnv.Set(node.Item.Value, elem)
+			result := i.Eval(node.Body, localEnv)
+			if isError(result) {
+				fmt.Printf("error in spawned goroutine: %s\n", result.String())
+			}
+		}(e)
+	}
+	wg.Wait()
+	return NULL
 }

@@ -1,11 +1,12 @@
-let arrayMap = fn(arr, func) {
+let map = fn(arr, func) {
     let result = []
     for item in arr {
         result = push(result, func(item))
     }
     return result
 }
-let arrayFilter = fn(arr, func) {
+
+let filter = fn(arr, func) {
     let result = []
     for item in arr {
         if func(item) {
@@ -14,14 +15,16 @@ let arrayFilter = fn(arr, func) {
     }
     return result
 }
-let arrayReduce = fn(arr, func, initial) {
+
+let reduce = fn(arr, func, initial) {
     let acc = initial
     for item in arr {
         acc = func(acc, item)
     }
     return acc
 }
-let arrayUnique = fn(arr) {
+
+let unique = fn(arr) {
     let result = []
     for item in arr {
         if !contains(result, item) {
@@ -30,11 +33,12 @@ let arrayUnique = fn(arr) {
     }
     return result
 }
-let arrayFlat = fn(arr) {
+
+let flat = fn(arr) {
     let result = []
     for item in arr {
         if type(item) == "ARRAY" {
-            let inner = arrayFlat(item)
+            let inner = flat(item)
             for el in inner {
                 result = push(result, el)
             }
@@ -44,23 +48,26 @@ let arrayFlat = fn(arr) {
     }
     return result
 }
-let arrayCopy = fn(arr) {
+
+let copy = fn(arr) {
     let result = []
     for item in arr {
         result = push(result, item)
     }
     return result
 }
-let arraySum = fn(arr) {
+
+let sum = fn(arr) {
     let sum = 0
     for item in arr {
         sum = sum + item
     }
     return sum
 }
-let arrayMin = fn(arr) {
+
+let min = fn(arr) {
     if len(arr) == 0 {
-        print("error: arrayMin() called on empty array")
+        print("error: min() called on empty array")
         exit(1)
     }
     let min = first(arr)
@@ -71,9 +78,10 @@ let arrayMin = fn(arr) {
     }
     return min
 }
-let arrayMax = fn(arr) {
+
+let max = fn(arr) {
     if len(arr) == 0 {
-        print("error: arrayMax() called on empty array")
+        print("error: max() called on empty array")
         exit(1)
     }
     let max = first(arr)
@@ -84,7 +92,8 @@ let arrayMax = fn(arr) {
     }
     return max
 }
-let arrayContainsAll = fn(arr, items) {
+
+let containsAll = fn(arr, items) {
     for item in items {
         if !contains(arr, item) {
             return false
@@ -92,7 +101,8 @@ let arrayContainsAll = fn(arr, items) {
     }
     return true
 }
-let arrayChunk = fn(arr, size) {
+
+let chunk = fn(arr, size) {
     let result = []
     let i = 0
     for i < len(arr) {
@@ -105,7 +115,8 @@ let arrayChunk = fn(arr, size) {
     }
     return result
 }
-let arrayIndexOf = fn(arr, val) {
+
+let indexOf = fn(arr, val) {
     let i = 0
     for item in arr {
         if item == val {
@@ -115,3 +126,17 @@ let arrayIndexOf = fn(arr, val) {
     }
     return -1
 }
+
+// backwards compat aliases
+let arrayMap = map
+let arrayFilter = filter
+let arrayReduce = reduce
+let arrayUnique = unique
+let arrayFlat = flat
+let arrayCopy = copy
+let arraySum = sum
+let arrayMin = min
+let arrayMax = max
+let arrayContainsAll = containsAll
+let arrayChunk = chunk
+let arrayIndexOf = indexOf
