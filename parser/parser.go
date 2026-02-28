@@ -20,7 +20,7 @@ const (
 	PRODUCT         // 7 - *, /
 	PREFIX          // 9 - unary -, !
 	CALL            // 11 - function calls
-	DOT             // 12 - member access (e.g., object.property
+	DOT             // 12 - member access (e.g., object.property)
 )
 
 // extra tokens
@@ -509,8 +509,9 @@ func (de *DotExpression) String() string {
 
 // Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
-	lexer  *golexer.Lexer
-	errors []string
+	lexer    *golexer.Lexer
+	errors   []string
+	filename string // optional source filename for error messages
 
 	curToken       golexer.Token
 	peekToken      golexer.Token
@@ -538,6 +539,19 @@ func (p *Parser) expectPeek(t golexer.TokenType) bool {
 	}
 }
 func (p *Parser) peekError(t golexer.TokenType) {
+	// include filename if available: filename:line:col: SyntaxError: ...
+	if p.filename != "" {
+		msg := fmt.Sprintf(
+			"%s:%d:%d: SyntaxError: unexpected token '%s', expected '%s'",
+			p.filename,
+			p.peekToken.Line,
+			p.peekToken.Column,
+			p.peekToken.Literal,
+			t,
+		)
+		p.errors = append(p.errors, msg)
+		return
+	}
 	msg := fmt.Sprintf(
 		"SyntaxError: unexpected token '%s', expected '%s' at line %d:%d",
 		p.peekToken.Literal,
@@ -549,6 +563,18 @@ func (p *Parser) peekError(t golexer.TokenType) {
 }
 
 func (p *Parser) noPrefixParseFnError(t golexer.TokenType) {
+	// include filename if available: filename:line:col: SyntaxError: ...
+	if p.filename != "" {
+		msg := fmt.Sprintf(
+			"%s:%d:%d: SyntaxError: unexpected token '%s'",
+			p.filename,
+			p.curToken.Line,
+			p.curToken.Column,
+			p.curToken.Literal,
+		)
+		p.errors = append(p.errors, msg)
+		return
+	}
 	msg := fmt.Sprintf(
 		"SyntaxError: unexpected token '%s' at line %d:%d",
 		p.curToken.Literal,
@@ -557,6 +583,8 @@ func (p *Parser) noPrefixParseFnError(t golexer.TokenType) {
 	)
 	p.errors = append(p.errors, msg)
 }
+
+// synchronize advances tokens until a likely statement boundary to recover from parse errors
 func (p *Parser) synchronize() {
 	for !p.curTokenIs(golexer.EOF) {
 		if p.curTokenIs(golexer.SEMICOLON) {
@@ -589,11 +617,15 @@ func (p *Parser) Errors() []string {
 	return p.errors
 }
 
-// NewParser creates and initializes a new Parser with the given lexer.
-func NewParser(lexer *golexer.Lexer) *Parser {
+// NewParser creates and initializes a new Parser with the given lexer and optional filename.
+func NewParser(lexer *golexer.Lexer, filename ...string) *Parser {
 	p := &Parser{
-		lexer:  lexer,
-		errors: []string{},
+		lexer:    lexer,
+		errors:   []string{},
+		filename: "",
+	}
+	if len(filename) > 0 {
+		p.filename = filename[0]
 	}
 	p.prefixParseFns = make(map[golexer.TokenType]PrefixParsefn)
 	p.infixParseFns = make(map[golexer.TokenType]InfixParsefn)
@@ -787,6 +819,7 @@ func (p *Parser) parseIfExpression() *IfExpression {
 	return stmt
 }
 
+// parseForStatement handles both traditional for loops and for-in loops
 func (p *Parser) parseForStatement() Statement {
 	stmt := &ForStatement{Token: p.curToken}
 	p.nextToken()
@@ -826,6 +859,8 @@ func (p *Parser) parseBlockStatement() *BlockStatement {
 	}
 	return block
 }
+
+// parseExpression parses expressions using Pratt parsing rules and respects precedence
 func (p *Parser) parseExpression(precedence int) Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
@@ -848,6 +883,8 @@ func (p *Parser) parseExpression(precedence int) Expression {
 func (p *Parser) parseIdentifier() Expression {
 	return &Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
+
+// parseIntegerLiteral parses numeric literals and detects floats when a decimal point is present
 func (p *Parser) parseIntegerLiteral() Expression {
 	// Check if the literal contains a decimal point (float)
 	if strings.Contains(p.curToken.Literal, ".") {
@@ -910,6 +947,8 @@ func (p *Parser) parseBoolean() Expression {
 		Value: p.curTokenIs(golexer.TRUE),
 	}
 }
+
+// parseFunctionLiteral parses function literals and supports arrow expression shorthand
 func (p *Parser) parseFunctionLiteral() Expression {
 
 	lit := &FunctionLiteral{Token: p.curToken}
@@ -1093,6 +1132,8 @@ func (p *Parser) parseForInStatement() Statement {
 
 	return stmt
 }
+
+// parseTableLiteral parses table (map) literals composed of key:value pairs
 func (p *Parser) parseTableLiteral() Expression {
 	exp := &TableLiteral{Token: p.curToken}
 	if !p.expectPeek(golexer.LBRACE) {
@@ -1116,6 +1157,8 @@ func (p *Parser) parseTableLiteral() Expression {
 	}
 	return exp
 }
+
+// parseUseStament parses a module import specified by a string filename
 func (p *Parser) parseUseStament() *UseStatement {
 	stmt := &UseStatement{token: p.curToken}
 	if !p.expectPeek(golexer.STRING) {
@@ -1128,6 +1171,8 @@ func (p *Parser) parseUseStament() *UseStatement {
 	}
 	return stmt
 }
+
+// parseDotExpression parses member access expressions like object.property
 func (p *Parser) parseDotExpression(left Expression) Expression {
 	exp := &DotExpression{Token: p.curToken, Left: left}
 	p.nextToken()

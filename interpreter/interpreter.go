@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -46,6 +47,9 @@ type Environment struct {
 type Interpreter struct {
 	Env         *Environment
 	ModuleCache map[string]*Environment
+	StdFs       fs.FS
+	ToeknPath   string // lexer token path used when loading modules
+	CurrentFile string // currently executing file for error reporting
 }
 type Integer struct {
 	Value int64
@@ -69,6 +73,7 @@ type Error struct {
 	Message string
 	Line    int
 	Column  int
+	File    string
 }
 
 type Function struct {
@@ -133,6 +138,10 @@ func (b *BreakSignal) Type() ObjectType    { return BREAK_OBJ }
 func (c *ContinueSignal) String() string   { return "continue" }
 func (b *BreakSignal) String() string      { return "break" }
 func (e *Error) String() string {
+	// if file is known, prefer concise file:line:column: message format
+	if e.File != "" && e.Line > 0 {
+		return fmt.Sprintf("%s:%d:%d: %s", e.File, e.Line, e.Column, e.Message)
+	}
 	if e.Line > 0 {
 		return fmt.Sprintf("ERROR [%d:%d]: %s", e.Line, e.Column, e.Message)
 	}
@@ -223,11 +232,21 @@ func (e *Environment) Update(name string, val Object) Object {
 	}
 	return nil
 }
-func NewInterpreter() *Interpreter {
-	return &Interpreter{Env: NewEnvironment(),
+
+// NewInterpreter creates a new interpreter and sets the default token path
+func NewInterpreter(fsys ...fs.FS) *Interpreter {
+	i := &Interpreter{Env: NewEnvironment(),
 		ModuleCache: make(map[string]*Environment),
+		ToeknPath:   "tokens.json", // default tokens.json path for lexer
 	}
+	if len(fsys) > 0 {
+		i.StdFs = fsys[0]
+	}
+
+	return i
 }
+
+// isTruthy returns whether an object counts as true in conditionals
 func isTruthy(obj Object) bool {
 	switch obj {
 	case TRUE:
@@ -251,12 +270,24 @@ func newErrorAt(line, col int, format string, a ...interface{}) *Error {
 		Column:  col,
 	}
 }
+
+// fileError creates an error that includes the interpreter's current file context.
+func (i *Interpreter) fileError(line, col int, format string, a ...interface{}) *Error {
+	return &Error{
+		Message: fmt.Sprintf(format, a...),
+		Line:    line,
+		Column:  col,
+		File:    i.CurrentFile,
+	}
+}
 func isError(obj Object) bool {
 	if obj != nil {
 		return obj.Type() == ERROR_OBJ
 	}
 	return false
 }
+
+// Eval dispatches AST nodes to their evaluator implementations
 func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 	switch node := node.(type) {
 	case *parser.Program:
@@ -339,7 +370,7 @@ func (i *Interpreter) evalIdentifier(node *parser.Identifier, env *Environment) 
 	if builtin, ok := builtins[node.Value]; ok {
 		return builtin
 	}
-	return newErrorAt(node.Token.Line, node.Token.Column, "identifier not found: %s", node.Value)
+	return i.fileError(node.Token.Line, node.Token.Column, "identifier not found: %s", node.Value)
 }
 func (i *Interpreter) evalLetStatement(node *parser.LetStatement, env *Environment) Object {
 	val := i.Eval(node.Value, env)
@@ -349,6 +380,8 @@ func (i *Interpreter) evalLetStatement(node *parser.LetStatement, env *Environme
 	env.Set(node.Name.Value, val)
 	return val
 }
+
+// evalInfixExpression evaluates binary and assignment operators, including compound assignments
 func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Environment) Object {
 	if node.Operator == "=" {
 		switch left := node.Left.(type) {
@@ -359,7 +392,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 			}
 			result := env.Update(left.Value, val)
 			if result == nil {
-				return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", left.Value)
+				return i.fileError(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", left.Value)
 			}
 			return val
 
@@ -392,11 +425,11 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 				collection.Pairs[key] = val
 				return val
 			default:
-				return newErrorAt(node.Token.Line, node.Token.Column, "cannot index assign on type: %s", obj.Type())
+				return i.fileError(node.Token.Line, node.Token.Column, "cannot index assign on type: %s", obj.Type())
 			}
 
 		default:
-			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to non-identifier")
+			return i.fileError(node.Token.Line, node.Token.Column, "cannot assign to non-identifier")
 		}
 	}
 	if node.Operator == "+=" {
@@ -409,7 +442,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 			return val
 		}
 		if !ok {
-			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.String())
+			return i.fileError(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.String())
 		}
 		result := i.evalInfixExpression(&parser.InfixExpression{
 			Token:    node.Token,
@@ -442,7 +475,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 			return val
 		}
 		if !ok {
-			return newErrorAt(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.String())
+			return i.fileError(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", ident.String())
 		}
 		result := i.evalInfixExpression(&parser.InfixExpression{
 			Token:    node.Token,
@@ -492,10 +525,10 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 		}
 		return nativeBoolToBooleanObject(isTruthy(right))
 	case left.Type() != right.Type():
-		return newErrorAt(node.Token.Line, node.Token.Column,
+		return i.fileError(node.Token.Line, node.Token.Column,
 			"type mismatch: %s %s %s", left.Type(), node.Operator, right.Type())
 	default:
-		return newErrorAt(node.Token.Line, node.Token.Column,
+		return i.fileError(node.Token.Line, node.Token.Column,
 			"unknown operator: %s %s %s", left.Type(), node.Operator, right.Type())
 	}
 }
@@ -532,7 +565,7 @@ func (i *Interpreter) evalIntegerInfixExpression(operator string, left, right Ob
 	case ">=":
 		return nativeBoolToBooleanObject(leftVal >= rightVal)
 	default:
-		return newErrorAt(line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return i.fileError(line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 func (i *Interpreter) evalFloatInfixExpression(operator string, left, right Object, line, col int) Object {
@@ -564,7 +597,7 @@ func (i *Interpreter) evalFloatInfixExpression(operator string, left, right Obje
 		return nativeBoolToBooleanObject(leftVal >= rightVal)
 
 	default:
-		return newErrorAt(line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return i.fileError(line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -592,7 +625,7 @@ func (i *Interpreter) evalStringInfixExpression(operator string, left, right Obj
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return newErrorAt(line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
+		return i.fileError(line, col, "unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 func (i *Interpreter) evalBlockStatment(block *parser.BlockStatement, env *Environment) Object {
@@ -648,10 +681,12 @@ func (i *Interpreter) evalExpressions(exps []parser.Expression, env *Environment
 	}
 	return result
 }
+
+// applyFunction invokes user-defined or builtin functions with the provided arguments
 func (i *Interpreter) applyFunction(fn Object, args []Object) Object {
 	switch function := fn.(type) {
 	case *Function:
-		// create new function enviroment
+		// create new function environment
 		extendedEnv := i.extendFunctionEnv(function, args)
 		evaluated := i.Eval(function.Body, extendedEnv)
 		return i.unwrapReturnValue(evaluated)
@@ -689,9 +724,9 @@ func (i *Interpreter) evalPrefixExpression(node *parser.PrefixExpression, env *E
 		if right.Type() == INTEGER_OBJ {
 			return i.evalMinusPrefixOperatorExpression(right)
 		}
-		return newErrorAt(node.Token.Line, node.Token.Column, "unknown operator: %s%s", node.Operator, right.Type())
+		return i.fileError(node.Token.Line, node.Token.Column, "unknown operator: %s%s", node.Operator, right.Type())
 	default:
-		return newErrorAt(node.Token.Line, node.Token.Column, "unknown operator: %s%s", node.Operator, right.Type())
+		return i.fileError(node.Token.Line, node.Token.Column, "unknown operator: %s%s", node.Operator, right.Type())
 	}
 }
 func (i *Interpreter) evalBangOperatorExpression(right Object) Object {
@@ -724,12 +759,12 @@ func (i *Interpreter) evalArrayIndexExpression(node *parser.ArrayIndexExpression
 	switch obj := object.(type) {
 	case *Array:
 		if object.Type() != ARRAY_OBJ || index.Type() != INTEGER_OBJ {
-			return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
+			return i.fileError(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
 		}
 
 		idx := index.(*Integer).Value
 		if idx < 0 || idx >= int64(len(object.(*Array).Elements)) {
-			return newErrorAt(node.Token.Line, node.Token.Column,
+			return i.fileError(node.Token.Line, node.Token.Column,
 				"index out of bounds: index %d, length %d", idx, len(object.(*Array).Elements))
 		}
 
@@ -742,7 +777,7 @@ func (i *Interpreter) evalArrayIndexExpression(node *parser.ArrayIndexExpression
 		}
 		return val
 	default:
-		return newErrorAt(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
+		return i.fileError(node.Token.Line, node.Token.Column, "index operator not supported: %s", object.Type())
 	}
 }
 
@@ -823,6 +858,8 @@ func (i *Interpreter) evalSwitchCase(node *parser.SwitchCase, env *Environment, 
 	}
 	return nil
 }
+
+// evalForInStatement iterates over arrays, tables, or strings and executes the loop body
 func (i *Interpreter) evalForInStatement(node *parser.ForInStatement, env *Environment) Object {
 	iterable := i.Eval(node.Collection, env)
 	if isError(iterable) {
@@ -881,7 +918,7 @@ func (i *Interpreter) evalForInStatement(node *parser.ForInStatement, env *Envir
 			}
 		}
 	default:
-		return newErrorAt(node.Token.Line, node.Token.Column, "cannot iterate over non-iterable type: %s", iterable.Type())
+		return i.fileError(node.Token.Line, node.Token.Column, "cannot iterate over non-iterable type: %s", iterable.Type())
 	}
 
 	return NULL
@@ -905,6 +942,7 @@ func (i *Interpreter) evalTableLiteral(node *parser.TableLiteral, env *Environme
 	return table
 }
 
+// evalUseStatement loads and executes a module file into the current environment
 func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environment) Object {
 	fileName := node.FileName.Value + ".lgs"
 
@@ -916,19 +954,23 @@ func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environme
 	}
 
 	data, err := os.ReadFile(fileName)
+	if err != nil && i.StdFs != nil {
+		// fall back to embedded FS
+		data, err = fs.ReadFile(i.StdFs, fileName)
+	}
 	if err != nil {
-		return newErrorAt(node.FileName.Token.Line, node.FileName.Token.Column,
+		return i.fileError(node.FileName.Token.Line, node.FileName.Token.Column,
 			"module not found: %s", fileName)
 	}
 
-	lexer := golexer.NewLexerWithConfig(string(data), "tokens.json")
-	p := parser.NewParser(lexer)
+	lexer := golexer.NewLexerWithConfig(string(data), i.ToeknPath)
+	p := parser.NewParser(lexer, fileName)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {
 		for _, e := range p.Errors() {
 			fmt.Println(e)
 		}
-		return newErrorAt(node.FileName.Token.Line, node.FileName.Token.Column,
+		return i.fileError(node.FileName.Token.Line, node.FileName.Token.Column,
 			"failed to parse module: %s", fileName)
 	}
 	modulEnv := NewEnvironment()
@@ -940,6 +982,8 @@ func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environme
 	}
 	return NULL
 }
+
+// evalDotExpression returns a table member by identifier when left is a table
 func (i *Interpreter) evalDotExpression(node *parser.DotExpression, env *Environment) Object {
 	left := i.Eval(node.Left, env)
 	if isError(left) {
@@ -954,7 +998,7 @@ func (i *Interpreter) evalDotExpression(node *parser.DotExpression, env *Environ
 		}
 		return val
 	default:
-		return newErrorAt(node.Token.Line, node.Token.Column,
+		return i.fileError(node.Token.Line, node.Token.Column,
 			"dot operator not supported on type: %s", left.Type())
 	}
 }

@@ -1,7 +1,7 @@
 let passed = 0
 let failed = 0
 let total = 0
-let suiteName = ""
+let suiteNames = []
 let assert = fn(name, got, expected) {
     total = total + 1
     if toStr(got) == toStr(expected) {
@@ -12,15 +12,24 @@ let assert = fn(name, got, expected) {
     }
 }
 let suite = fn(name, func) {
-    suiteName = name
+    push(suiteNames, name)
     func()
 }
 let summary = fn() {
+    let names = ""
+    let i = 0
+    for i < len(suiteNames) {
+        if i > 0 {
+            names = names + ", "
+        }
+        names = names + suiteNames[i]
+        i = i + 1
+    }
     if failed > 0 {
         print(colorRed("FAIL"))
         print(colorRed("failed: ") + toStr(failed) + "/" + toStr(total))
         exit(1)
     } else {
-        print(colorGreen("ok") + "    " + suiteName + "    " + toStr(total) + " tests passed")
+        print(colorGreen("ok") + "    " + names + "    " + toStr(total) + " tests passed")
     }
 }

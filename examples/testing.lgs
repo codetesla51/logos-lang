@@ -1,0 +1,60 @@
+use "std/testing"
+use "std/math"
+use "std/array"
+use "std/string"
+
+// --- math ---
+suite("std/math", fn() {
+    assert("mathFactorial(5)", mathFactorial(5), 120)
+    assert("mathFactorial(0)", mathFactorial(0), 1)
+
+    assert("mathFib(1)", mathFib(1), 1)
+    assert("mathFib(7)", mathFib(7), 13)
+
+    assert("mathClamp low",  mathClamp(2, 5, 10), 5)
+    assert("mathClamp in",   mathClamp(7, 5, 10), 7)
+    assert("mathClamp high", mathClamp(15, 5, 10), 10)
+
+    assert("mathIsPrime(7)",  mathIsPrime(7),  true)
+    assert("mathIsPrime(10)", mathIsPrime(10), false)
+
+    assert("mathGcd(12, 8)", mathGcd(12, 8), 4)
+    assert("mathLcm(4, 6)",  mathLcm(4, 6),  12)
+
+    assert("mathMean",   mathMean([1, 2, 3, 4, 5]), 3)
+    assert("mathMedian", mathMedian([1, 2, 3, 4, 5]), 3)
+})
+
+// --- array ---
+suite("std/array", fn() {
+    assert("arrayMap",    arrayMap([1, 2, 3], fn(x) { x * 2 }), [2, 4, 6])
+    assert("arrayFilter", arrayFilter([1, 2, 3, 4], fn(x) { x > 2 }), [3, 4])
+    assert("arrayReduce", arrayReduce([1, 2, 3, 4], fn(acc, x) { acc + x }, 0), 10)
+
+    assert("arraySum",  arraySum([1, 2, 3, 4, 5]), 15)
+    assert("arrayMin",  arrayMin([3, 1, 4, 1, 5]), 1)
+    assert("arrayMax",  arrayMax([3, 1, 4, 1, 5]), 5)
+
+    assert("arrayUnique",   arrayUnique([1, 2, 2, 3, 3]), [1, 2, 3])
+    assert("arrayFlat",     arrayFlat([[1, 2], [3, 4]]), [1, 2, 3, 4])
+    assert("arrayContains", arrayContainsAll([1, 2, 3], [1, 2]), true)
+    assert("arrayIndexOf",  arrayIndexOf([10, 20, 30], 20), 1)
+
+    assert("arrayChunk", arrayChunk([1, 2, 3, 4], 2), [[1, 2], [3, 4]])
+})
+
+// --- string ---
+suite("std/string", fn() {
+    assert("strReverse",     strReverse("hello"),       "olleh")
+    assert("strCapitalize",  strCapitalize("hello"),    "Hello")
+    assert("strIsPalindrome true",  strIsPalindrome("racecar"), true)
+    assert("strIsPalindrome false", strIsPalindrome("hello"),   false)
+    assert("strIsEmpty true",  strIsEmpty(""),      true)
+    assert("strIsEmpty false", strIsEmpty("hello"), false)
+    assert("strCount",    strCount("hello", "l"),   2)
+    assert("strRepeat",   strRepeat("ab", 3),        "ababab")
+    assert("strPadStart", strPadStart("5", 3, "0"), "005")
+    assert("strPadEnd",   strPadEnd("5", 3, "0"),   "500")
+})
+
+summary()

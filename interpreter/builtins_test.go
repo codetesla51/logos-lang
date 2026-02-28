@@ -100,7 +100,6 @@ func TestInput(t *testing.T) {
 	}
 }
 func TestFileBuiltins(t *testing.T) {
-	// setup temp dir
 	tmpDir, _ := os.MkdirTemp("", "lgs-test-*")
 	defer os.RemoveAll(tmpDir)
 
@@ -110,181 +109,168 @@ func TestFileBuiltins(t *testing.T) {
 		expected string
 		setup    func()
 	}{
-		// write
+		// fileWrite
 		{
-			desc:     "write creates file",
-			input:    fmt.Sprintf(`write("%s/test.txt", "hello")`, tmpDir),
-			expected: "null",
+			desc:     "fileWrite creates file",
+			input:    fmt.Sprintf(`fileWrite("%s/test.txt", "hello").ok`, tmpDir),
+			expected: "true",
 		},
-		// read
+		// fileRead
 		{
-			desc:     "read existing file",
-			input:    fmt.Sprintf(`read("%s/test.txt")`, tmpDir),
+			desc:     "fileRead existing file",
+			input:    fmt.Sprintf(`fileRead("%s/test.txt").value`, tmpDir),
 			expected: "hello",
 			setup: func() {
 				os.WriteFile(tmpDir+"/test.txt", []byte("hello"), 0644)
 			},
 		},
 		{
-			desc:     "read nonexistent file returns null",
-			input:    fmt.Sprintf(`read("%s/nope.txt")`, tmpDir),
-			expected: "null",
+			desc:     "fileRead nonexistent returns ok false",
+			input:    fmt.Sprintf(`fileRead("%s/nope.txt").ok`, tmpDir),
+			expected: "false",
 		},
-		// append
+		// fileAppend
 		{
-			desc:     "append to file",
-			input:    fmt.Sprintf(`append("%s/append.txt", "world")`, tmpDir),
-			expected: "null",
+			desc:     "fileAppend to file",
+			input:    fmt.Sprintf(`fileAppend("%s/append.txt", "world").ok`, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.WriteFile(tmpDir+"/append.txt", []byte("hello "), 0644)
 			},
 		},
 		{
-			desc:     "read appended file",
-			input:    fmt.Sprintf(`read("%s/append.txt")`, tmpDir),
+			desc:     "fileRead appended file",
+			input:    fmt.Sprintf(`fileRead("%s/append.txt").value`, tmpDir),
 			expected: "hello world",
 			setup: func() {
 				os.WriteFile(tmpDir+"/append.txt", []byte("hello world"), 0644)
 			},
 		},
-		// exists
+		// fileExists
 		{
-			desc:     "exists returns true for existing file",
-			input:    fmt.Sprintf(`exists("%s/exists.txt")`, tmpDir),
+			desc:     "fileExists returns true",
+			input:    fmt.Sprintf(`fileExists("%s/exists.txt")`, tmpDir),
 			expected: "true",
 			setup: func() {
 				os.WriteFile(tmpDir+"/exists.txt", []byte(""), 0644)
 			},
 		},
 		{
-			desc:     "exists returns false for missing file",
-			input:    fmt.Sprintf(`exists("%s/missing.txt")`, tmpDir),
+			desc:     "fileExists returns false",
+			input:    fmt.Sprintf(`fileExists("%s/missing.txt")`, tmpDir),
 			expected: "false",
 		},
-		// delete
+		// fileDelete
 		{
-			desc:     "delete removes file",
-			input:    fmt.Sprintf(`delete("%s/del.txt")`, tmpDir),
-			expected: "null",
+			desc:     "fileDelete removes file",
+			input:    fmt.Sprintf(`fileDelete("%s/del.txt").ok`, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.WriteFile(tmpDir+"/del.txt", []byte(""), 0644)
 			},
 		},
 		{
-			desc:     "delete nonexistent returns null",
-			input:    fmt.Sprintf(`delete("%s/nope.txt")`, tmpDir),
-			expected: "null",
+			desc:     "fileDelete nonexistent returns ok false",
+			input:    fmt.Sprintf(`fileDelete("%s/nope.txt").ok`, tmpDir),
+			expected: "false",
 		},
-		// deleteAll
+		// fileDeleteAll
 		{
-			desc:     "deleteAll removes folder",
-			input:    fmt.Sprintf(`deleteAll("%s/subdir")`, tmpDir),
-			expected: "null",
+			desc:     "fileDeleteAll removes folder",
+			input:    fmt.Sprintf(`fileDeleteAll("%s/subdir").ok`, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.MkdirAll(tmpDir+"/subdir/nested", 0755)
 				os.WriteFile(tmpDir+"/subdir/nested/file.txt", []byte("hi"), 0644)
 			},
 		},
-		// rename
+		// fileRename
 		{
-			desc:     "rename file",
-			input:    fmt.Sprintf(`rename("%s/old.txt", "%s/new.txt")`, tmpDir, tmpDir),
-			expected: "null",
+			desc:     "fileRename renames file",
+			input:    fmt.Sprintf(`fileRename("%s/old.txt", "%s/new.txt").ok`, tmpDir, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.WriteFile(tmpDir+"/old.txt", []byte(""), 0644)
 			},
 		},
 		{
-			desc:     "rename nonexistent returns null",
-			input:    fmt.Sprintf(`rename("%s/nope.txt", "%s/nope2.txt")`, tmpDir, tmpDir),
-			expected: "null",
+			desc:     "fileRename nonexistent returns ok false",
+			input:    fmt.Sprintf(`fileRename("%s/nope.txt", "%s/nope2.txt").ok`, tmpDir, tmpDir),
+			expected: "false",
 		},
-		// mkdir
+		// fileMkdir
 		{
-			desc:     "mkdir creates folder",
-			input:    fmt.Sprintf(`mkdir("%s/newdir")`, tmpDir),
-			expected: "null",
+			desc:     "fileMkdir creates folder",
+			input:    fmt.Sprintf(`fileMkdir("%s/newdir").ok`, tmpDir),
+			expected: "true",
 		},
 		{
-			desc:     "mkdir creates nested folders",
-			input:    fmt.Sprintf(`mkdir("%s/a/b/c")`, tmpDir),
-			expected: "null",
+			desc:     "fileMkdir creates nested folders",
+			input:    fmt.Sprintf(`fileMkdir("%s/a/b/c").ok`, tmpDir),
+			expected: "true",
 		},
-		// rmdir
+		// fileRmdir
 		{
-			desc:     "rmdir removes empty folder",
-			input:    fmt.Sprintf(`rmdir("%s/emptydir")`, tmpDir),
-			expected: "null",
+			desc:     "fileRmdir removes empty folder",
+			input:    fmt.Sprintf(`fileRmdir("%s/emptydir").ok`, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.Mkdir(tmpDir+"/emptydir", 0755)
 			},
 		},
 		{
-			desc:     "rmdir nonexistent returns null",
-			input:    fmt.Sprintf(`rmdir("%s/nope")`, tmpDir),
-			expected: "null",
+			desc:     "fileRmdir nonexistent returns ok false",
+			input:    fmt.Sprintf(`fileRmdir("%s/nope").ok`, tmpDir),
+			expected: "false",
 		},
-		// cp
+		// fileCopy
 		{
-			desc:     "cp copies file",
-			input:    fmt.Sprintf(`cp("%s/src.txt", "%s/dst.txt")`, tmpDir, tmpDir),
-			expected: "null",
+			desc:     "fileCopy copies file",
+			input:    fmt.Sprintf(`fileCopy("%s/src.txt", "%s/dst.txt").ok`, tmpDir, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.WriteFile(tmpDir+"/src.txt", []byte("copied"), 0644)
 			},
 		},
 		{
-			desc:     "cp nonexistent returns null",
-			input:    fmt.Sprintf(`cp("%s/nope.txt", "%s/dst.txt")`, tmpDir, tmpDir),
-			expected: "null",
+			desc:     "fileCopy nonexistent returns ok false",
+			input:    fmt.Sprintf(`fileCopy("%s/nope.txt", "%s/dst.txt").ok`, tmpDir, tmpDir),
+			expected: "false",
 		},
-		// mv
-		// {
-		// 	desc:     "mv moves file",
-		// 	input:    fmt
-		//		.Sprintf(`mv("%s/mv_src.txt", "%s/mv_dst.txt")`, tmpDir, tmpDir),
-		// 	expected: "null",
-		// 	setup: func() {
-		// 		os.Remove(tmpDir + "/mv_dst.txt")
-		// 		os.WriteFile(tmpDir+"/mv_src.txt", []byte("moved"), 0644)
-		// 	},
-		// },
-		// chmod
+		// fileChmod
 		{
-			desc:     "chmod changes permissions",
-			input:    fmt.Sprintf(`chmod("%s/chmod.txt", "0644")`, tmpDir),
-			expected: "null",
+			desc:     "fileChmod changes permissions",
+			input:    fmt.Sprintf(`fileChmod("%s/chmod.txt", "0644").ok`, tmpDir),
+			expected: "true",
 			setup: func() {
 				os.WriteFile(tmpDir+"/chmod.txt", []byte(""), 0644)
 			},
 		},
 		{
-			desc:     "chmod invalid mode returns error",
-			input:    fmt.Sprintf(`chmod("%s/chmod.txt", "badmode")`, tmpDir),
-			expected: `ERROR: chmod() invalid mode "badmode", use octal like "0755"`,
+			desc:     "fileChmod invalid mode returns error",
+			input:    fmt.Sprintf(`fileChmod("%s/chmod.txt", "badmode")`, tmpDir),
+			expected: `ERROR: fileChmod() invalid mode "badmode", use octal like "0755"`,
 		},
-		// glob
+		// fileGlob
 		{
-			desc:     "glob finds files",
-			input:    fmt.Sprintf(`len(glob("%s/*.txt"))`, tmpDir),
+			desc:     "fileGlob finds files",
+			input:    fmt.Sprintf(`len(fileGlob("%s/*.txt").value)`, tmpDir),
 			expected: "1",
 			setup: func() {
-				// clean tmpDir first then add one txt file
 				os.RemoveAll(tmpDir)
-				os.MkdirTemp("", "")
 				os.MkdirAll(tmpDir, 0755)
 				os.WriteFile(tmpDir+"/only.txt", []byte(""), 0644)
 			},
 		},
 		{
-			desc:     "glob no matches returns empty array",
-			input:    fmt.Sprintf(`len(glob("%s/*.xyz"))`, tmpDir),
+			desc:     "fileGlob no matches returns empty array",
+			input:    fmt.Sprintf(`len(fileGlob("%s/*.xyz").value)`, tmpDir),
 			expected: "0",
 		},
-		// readDir
+		// fileReadDir
 		{
-			desc:     "readDir returns file names",
-			input:    fmt.Sprintf(`len(readDir("%s"))`, tmpDir),
+			desc:     "fileReadDir returns file names",
+			input:    fmt.Sprintf(`len(fileReadDir("%s").value)`, tmpDir),
 			expected: "1",
 			setup: func() {
 				os.RemoveAll(tmpDir)
@@ -293,9 +279,9 @@ func TestFileBuiltins(t *testing.T) {
 			},
 		},
 		{
-			desc:     "readDir nonexistent returns null",
-			input:    fmt.Sprintf(`readDir("%s/nope")`, tmpDir),
-			expected: "null",
+			desc:     "fileReadDir nonexistent returns ok false",
+			input:    fmt.Sprintf(`fileReadDir("%s/nope").ok`, tmpDir),
+			expected: "false",
 		},
 	}
 

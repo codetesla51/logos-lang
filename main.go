@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,6 +19,8 @@ const (
 	PROMPT  = ">> "
 	VERSION = "0.0.1"
 )
+
+var stdFiles embed.FS
 
 func eval(input string, inter *interpreter.Interpreter) interpreter.Object {
 	lexer := golexer.NewLexerWithConfig(input, "tokens.json")
@@ -42,7 +45,7 @@ func buildFile(path string) {
 
 	// verify it parses
 	lexer := golexer.NewLexerWithConfig(source, "tokens.json")
-	p := parser.NewParser(lexer)
+	p := parser.NewParser(lexer, path)
 	p.Parse()
 	if len(p.Errors()) != 0 {
 		for _, err := range p.Errors() {
@@ -57,8 +60,9 @@ func buildFile(path string) {
 	goSource := fmt.Sprintf(`package main
 
 import (
-    _ "embed"
+    "embed"
     "fmt"
+    "io/fs"
     "os"
     "path/filepath"
     "github.com/codetesla51/golexer/golexer"
@@ -69,7 +73,11 @@ import (
 //go:embed tokens.json
 var tokensJson []byte
 
+//go:embed std
+var stdFiles embed.FS
+
 const script = %s%s%s
+const filename = %s
 
 func main() {
     tmpDir, err := os.MkdirTemp("", "logos")
@@ -87,7 +95,7 @@ func main() {
     }
 
     lexer := golexer.NewLexerWithConfig(script, tokensPath)
-    p := parser.NewParser(lexer)
+    p := parser.NewParser(lexer, filename)
     program := p.Parse()
     if len(p.Errors()) != 0 {
         for _, err := range p.Errors() {
@@ -95,15 +103,16 @@ func main() {
         }
         os.Exit(1)
     }
-    inter := interpreter.NewInterpreter()
+
+    inter := interpreter.NewInterpreter(fs.FS(stdFiles))
+    inter.ToeknPath  = tokensPath
     result := inter.Eval(program, inter.Env)
     if result != nil && result.Type() == interpreter.ERROR_OBJ {
         fmt.Fprintln(os.Stderr, result.String())
         os.Exit(1)
     }
 }
-`, "`", source, "`")
-
+`, "`", source, "`", path)
 	err = os.WriteFile(goFile, []byte(goSource), 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error writing build file: %s\n", err)
@@ -132,7 +141,7 @@ func formatFile(path string) {
 	}
 	source := stripShebang(string(data))
 	lexer := golexer.NewLexerWithConfig(source, "tokens.json")
-	p := parser.NewParser(lexer)
+	p := parser.NewParser(lexer, path)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {
 		for _, err := range p.Errors() {
@@ -166,9 +175,10 @@ func runFile(path string) {
 		os.Exit(1)
 	}
 	source := stripShebang(string(data))
-	inter := interpreter.NewInterpreter()
+	inter := interpreter.NewInterpreter(stdFiles)
+	inter.CurrentFile = path
 	lexer := golexer.NewLexerWithConfig(source, "tokens.json")
-	p := parser.NewParser(lexer)
+	p := parser.NewParser(lexer, path)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {
 		for _, err := range p.Errors() {
@@ -185,7 +195,7 @@ func runFile(path string) {
 
 func runREPL() {
 	scanner := bufio.NewScanner(os.Stdin)
-	inter := interpreter.NewInterpreter()
+	inter := interpreter.NewInterpreter(stdFiles)
 	fmt.Printf("Logos v%s — REPL (ctrl+c to exit)\n", VERSION)
 	for {
 		fmt.Print(PROMPT)

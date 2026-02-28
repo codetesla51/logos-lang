@@ -834,3 +834,159 @@ func TestForInTypes(t *testing.T) {
 		})
 	}
 }
+func TestMixedArithmetic(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// int + float
+		{"1 + 0.5", "1.5", "int + float"},
+		{"5 + 2.5", "7.5", "int + float 2"},
+		// float + int
+		{"0.5 + 1", "1.5", "float + int"},
+		{"2.5 + 5", "7.5", "float + int 2"},
+		// int * float
+		{"5 * 2.0", "10", "int * float"},
+		{"3 * 1.5", "4.5", "int * float 2"},
+		// float * int
+		{"2.0 * 5", "10", "float * int"},
+		{"1.5 * 3", "4.5", "float * int 2"},
+		// int / float
+		{"10 / 4.0", "2.5", "int / float"},
+		{"1 / 2.0", "0.5", "int / float 2"},
+		// float / int
+		{"10.0 / 4", "2.5", "float / int"},
+		// int - float
+		{"5 - 0.5", "4.5", "int - float"},
+		// float - int
+		{"5.5 - 1", "4.5", "float - int"},
+		// comparisons
+		{"1 < 1.5", "true", "int < float"},
+		{"2.5 > 2", "true", "float > int"},
+		{"1.0 == 1", "true", "float == int"},
+		{"2 != 2.5", "true", "int != float"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+
+func TestIndexAssignment(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// array index assignment
+		{"let arr = [1, 2, 3]; arr[0] = 99; arr[0]", "99", "array index assign first"},
+		{"let arr = [1, 2, 3]; arr[2] = 99; arr[2]", "99", "array index assign last"},
+		{"let arr = [1, 2, 3]; arr[1] = 99; arr[1]", "99", "array index assign middle"},
+		{"let arr = [1, 2, 3]; arr[0] = 99; arr[1]", "2", "array index assign doesnt affect others"},
+		// array index out of bounds
+		{"let arr = [1, 2, 3]; arr[5] = 99", "ERROR [1:31]: index out of bounds: 5", "array index assign out of bounds"},
+		{"let arr = [1, 2, 3]; arr[-1] = 99", "ERROR [1:32]: index out of bounds: -1", "array index assign negative"},
+		// table index assignment
+		{"let t = table{\"x\": 1}; t[\"x\"] = 42; t[\"x\"]", "42", "table index assign existing key"},
+		{"let t = table{\"x\": 1}; t[\"y\"] = 42; t[\"y\"]", "42", "table index assign new key"},
+		{"let t = table{}; t[\"key\"] = \"val\"; t[\"key\"]", "val", "table index assign empty table"},
+		// assign expression result
+		{"let arr = [1, 2, 3]; arr[0] = 1 + 1; arr[0]", "2", "array index assign expression"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+
+func TestDotExpression(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// basic dot access
+		{"let t = table{\"ok\": true}; t.ok", "true", "dot access bool"},
+		{"let t = table{\"x\": 1}; t.x", "1", "dot access int"},
+		{"let t = table{\"name\": \"logos\"}; t.name", "logos", "dot access string"},
+		// missing key
+		{"let t = table{\"x\": 1}; t.missing", "null", "dot access missing key"},
+		// nested
+		{"let t = table{\"inner\": table{\"x\": 42}}; t.inner.x", "42", "dot access nested"},
+		// result table
+		{"let t = table{\"ok\": true, \"value\": 42}; t.ok", "true", "dot access ok field"},
+		{"let t = table{\"ok\": true, \"value\": 42}; t.value", "42", "dot access value field"},
+		// dot on non table
+		{"let x = 5; x.foo", "ERROR [1:13]: dot operator not supported on type: INTEGER", "dot on non table"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexer(tc.input)
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+
+func TestSwitchStatementEval(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		// basic match
+		{"switch 1 { case 1 { 10 } case 2 { 20 } }", "10", "switch matches first case"},
+		{"switch 2 { case 1 { 10 } case 2 { 20 } }", "20", "switch matches second case"},
+		// no match no default
+		{"switch 3 { case 1 { 10 } case 2 { 20 } }", "null", "switch no match returns null"},
+		// default
+		{"switch 3 { case 1 { 10 } default { 99 } }", "99", "switch hits default"},
+		{"switch 1 { case 1 { 10 } default { 99 } }", "10", "switch case wins over default"},
+		// string match
+		{"switch \"hello\" { case \"hello\" { 1 } case \"world\" { 2 } }", "1", "switch string match"},
+		// break
+		{"switch 1 { case 1 { break } default { 99 } }", "null", "switch break"},
+		// expression
+		{"switch 1 + 1 { case 2 { 10 } default { 0 } }", "10", "switch expression"},
+		// return inside case
+		{"let f = fn() { switch 1 { case 1 { return 42 } } }; f()", "42", "switch return inside function"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			lexer := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			p := parser.NewParser(lexer)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
