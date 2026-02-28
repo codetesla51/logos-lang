@@ -492,7 +492,7 @@ func TestArrayIndexExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			lexer := golexer.NewLexerWithConfig(tt.input, "tokens.json")
+			lexer := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
 			p := parser.NewParser(lexer)
 			program := p.Parse()
 			inter := NewInterpreter()

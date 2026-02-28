@@ -1,6 +1,3 @@
-let fileName = read("main.go")
-if fileName == null{
-    print("error reading file")
-}
-sleep(2000)
-print(upper(fileName))
+let res = httpGet("https://jsonplaceholder.typicode.com/todos/1")
+print(res["status"])
+print(res["body"])

@@ -323,7 +323,7 @@ func init() {
 			if err != nil {
 				return NULL
 			}
-			return NULL
+			return TRUE
 		},
 	}
 
@@ -588,10 +588,10 @@ func init() {
 	// TYPE CONVERSION
 	// -------------------------
 
-	builtins["int"] = &Builtin{
+	builtins["toInt"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("int() takes 1 argument, got %d", len(args))
+				return newError("toInt() takes 1 argument, got %d", len(args))
 			}
 			switch arg := args[0].(type) {
 			case *Integer:
@@ -615,10 +615,10 @@ func init() {
 		},
 	}
 
-	builtins["float"] = &Builtin{
+	builtins["toFloat"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("float() takes 1 argument, got %d", len(args))
+				return newError("toFloat() takes 1 argument, got %d", len(args))
 			}
 			switch arg := args[0].(type) {
 			case *Float:
@@ -642,10 +642,10 @@ func init() {
 		},
 	}
 
-	builtins["bool"] = &Builtin{
+	builtins["toBool"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("bool() takes 1 argument, got %d", len(args))
+				return newError("toBool() takes 1 argument, got %d", len(args))
 			}
 			switch arg := args[0].(type) {
 			case *Bool:
@@ -673,10 +673,10 @@ func init() {
 		},
 	}
 
-	builtins["str"] = &Builtin{
+	builtins["toStr"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
-				return newError("str() takes 1 argument, got %d", len(args))
+				return newError("toStr() takes 1 argument, got %d", len(args))
 			}
 			return &String{Value: args[0].String()}
 		},
@@ -816,7 +816,13 @@ func init() {
 			}
 			items := make([]Object, 0, len(table.Pairs))
 			for k := range table.Pairs {
-				items = append(items, &String{Value: k})
+				// strip the "TYPE:" prefix to get the real key
+				parts := strings.SplitN(k, ":", 2)
+				if len(parts) == 2 {
+					items = append(items, &String{Value: parts[1]})
+				} else {
+					items = append(items, &String{Value: k})
+				}
 			}
 			return &Array{Elements: items}
 		},
@@ -852,7 +858,7 @@ func init() {
 			if !ok {
 				return newError("has() second argument must be a string")
 			}
-			_, exists := table.Pairs[key.Value]
+			_, exists := table.Pairs["STRING:"+key.Value]
 			if exists {
 				return TRUE
 			}
@@ -875,7 +881,7 @@ func init() {
 			}
 			newPairs := map[string]Object{}
 			for k, v := range table.Pairs {
-				if k != key.Value {
+				if k != "STRING:"+key.Value {
 					newPairs[k] = v
 				}
 			}
@@ -1201,8 +1207,8 @@ func init() {
 				return NULL
 			}
 			pairs := map[string]Object{}
-			pairs["body"] = &String{Value: string(body)}
-			pairs["status"] = &Integer{Value: int64(resp.StatusCode)}
+			pairs["STRING:body"] = &String{Value: string(body)}
+			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
 			return &Table{Pairs: pairs}
 		},
 	}
@@ -1230,8 +1236,8 @@ func init() {
 				return NULL
 			}
 			pairs := map[string]Object{}
-			pairs["body"] = &String{Value: string(respBody)}
-			pairs["status"] = &Integer{Value: int64(resp.StatusCode)}
+			pairs["STRING:body"] = &String{Value: string(respBody)}
+			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
 			return &Table{Pairs: pairs}
 		},
 	}
@@ -1265,8 +1271,8 @@ func init() {
 				return NULL
 			}
 			pairs := map[string]Object{}
-			pairs["body"] = &String{Value: string(respBody)}
-			pairs["status"] = &Integer{Value: int64(resp.StatusCode)}
+			pairs["STRING:body"] = &String{Value: string(respBody)}
+			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
 			return &Table{Pairs: pairs}
 		},
 	}
@@ -1295,8 +1301,8 @@ func init() {
 				return NULL
 			}
 			pairs := map[string]Object{}
-			pairs["body"] = &String{Value: string(respBody)}
-			pairs["status"] = &Integer{Value: int64(resp.StatusCode)}
+			pairs["STRING:body"] = &String{Value: string(respBody)}
+			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
 			return &Table{Pairs: pairs}
 		},
 	}
@@ -1305,7 +1311,6 @@ func init() {
 // -------------------------
 // JSON HELPERS
 // -------------------------
-
 func jsonToObject(v interface{}) Object {
 	switch val := v.(type) {
 	case nil:
@@ -1316,7 +1321,6 @@ func jsonToObject(v interface{}) Object {
 		}
 		return FALSE
 	case float64:
-		// if it's a whole number, return as integer
 		if val == float64(int64(val)) {
 			return &Integer{Value: int64(val)}
 		}
@@ -1332,7 +1336,8 @@ func jsonToObject(v interface{}) Object {
 	case map[string]interface{}:
 		pairs := map[string]Object{}
 		for k, v2 := range val {
-			pairs[k] = jsonToObject(v2)
+			obj := jsonToObject(v2)
+			pairs["STRING:"+k] = obj
 		}
 		return &Table{Pairs: pairs}
 	default:

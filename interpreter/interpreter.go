@@ -13,7 +13,7 @@ type ObjectType string
 type BuiltinFunc func(args ...Object) Object
 
 const (
-	INTEGER_OBJ      = "Integer"
+	INTEGER_OBJ      = "INTEGER"
 	FLOAT_OBJ        = "FLOAT"
 	BOOLEAN_OBJ      = "BOOLEAN"
 	NULL_OBJ         = "NULL"
