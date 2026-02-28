@@ -45,7 +45,7 @@ type Environment struct {
 }
 type Interpreter struct {
 	Env         *Environment
-	ModuleCache map[string]bool
+	ModuleCache map[string]*Environment
 }
 type Integer struct {
 	Value int64
@@ -225,7 +225,7 @@ func (e *Environment) Update(name string, val Object) Object {
 }
 func NewInterpreter() *Interpreter {
 	return &Interpreter{Env: NewEnvironment(),
-		ModuleCache: make(map[string]bool),
+		ModuleCache: make(map[string]*Environment),
 	}
 }
 func isTruthy(obj Object) bool {
@@ -869,8 +869,10 @@ func (i *Interpreter) evalTableLiteral(node *parser.TableLiteral, env *Environme
 func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environment) Object {
 	fileName := node.FileName.Value + ".lgs"
 
-	// already loaded, skip
-	if i.ModuleCache[fileName] {
+	if cached, ok := i.ModuleCache[fileName]; ok {
+		for k, v := range cached.store {
+			env.Set(k, v)
+		}
 		return NULL
 	}
 
@@ -890,9 +892,14 @@ func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environme
 		return newErrorAt(node.FileName.Token.Line, node.FileName.Token.Column,
 			"failed to parse module: %s", fileName)
 	}
+	modulEnv := NewEnvironment()
+	i.Eval(program, modulEnv)
+	i.ModuleCache[fileName] = modulEnv
 
-	i.ModuleCache[fileName] = true
-	return i.Eval(program, env)
+	for k, v := range modulEnv.store {
+		env.Set(k, v)
+	}
+	return NULL
 }
 func (i *Interpreter) evalDotExpression(node *parser.DotExpression, env *Environment) Object {
 	left := i.Eval(node.Left, env)
