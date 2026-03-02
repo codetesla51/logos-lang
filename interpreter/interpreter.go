@@ -1141,8 +1141,11 @@ func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environme
 
 	data, err := os.ReadFile(fileName)
 	if err != nil && i.StdFs != nil {
-		// fall back to embedded FS
-		data, err = fs.ReadFile(i.StdFs, fileName)
+		// fall back to embedded FS - try std/ subdirectory first, then root
+		data, err = fs.ReadFile(i.StdFs, "std/"+fileName)
+		if err != nil {
+			data, err = fs.ReadFile(i.StdFs, fileName)
+		}
 	}
 	if err != nil {
 		return i.fileError(node.FileName.Token.Line, node.FileName.Token.Column,

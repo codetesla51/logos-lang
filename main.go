@@ -7,7 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/codetesla51/golexer/golexer"
 	"github.com/codetesla51/logos/formatter"
@@ -16,7 +19,7 @@ import (
 )
 
 const (
-	PROMPT  = ">> "
+	PROMPT  = ">>> "
 	VERSION = "0.0.1"
 )
 
@@ -34,6 +37,37 @@ func eval(input string, inter *interpreter.Interpreter) interpreter.Object {
 	}
 	return inter.Eval(program, inter.Env)
 }
+
+// stdModules contains the names of standard library modules
+var stdModules = map[string]bool{
+	"array": true, "log": true, "math": true, "path": true,
+	"string": true, "testing": true, "time": true, "type": true,
+}
+
+// findUserModules scans source code for use statements and returns non-std module names
+func findUserModules(source, baseDir string, visited map[string]bool) []string {
+	var modules []string
+	useRegex := regexp.MustCompile(`use\s+"([^"]+)"`)
+	matches := useRegex.FindAllStringSubmatch(source, -1)
+
+	for _, match := range matches {
+		modName := match[1]
+		if stdModules[modName] || visited[modName] {
+			continue
+		}
+		visited[modName] = true
+		modules = append(modules, modName)
+
+		// recursively scan this module for its dependencies
+		modPath := filepath.Join(baseDir, modName+".lgs")
+		if data, err := os.ReadFile(modPath); err == nil {
+			subModules := findUserModules(string(data), baseDir, visited)
+			modules = append(modules, subModules...)
+		}
+	}
+	return modules
+}
+
 func buildFile(path string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -54,9 +88,89 @@ func buildFile(path string) {
 		os.Exit(1)
 	}
 
-	outputName := strings.TrimSuffix(filepath.Base(path), ".lgs")
-	goFile := outputName + "_build.go"
+	// find user modules referenced by this script
+	baseDir := filepath.Dir(path)
+	if baseDir == "" {
+		baseDir = "."
+	}
+	userModules := findUserModules(source, baseDir, make(map[string]bool))
 
+	outputName := strings.TrimSuffix(filepath.Base(path), ".lgs")
+
+	// create temp build directory
+	buildDir, err := os.MkdirTemp("", "logos-build-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error creating build directory: %s\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(buildDir)
+
+	// find the logos installation directory (where std, go.mod are)
+	// first try current working directory, then fall back to executable directory
+	logosDir, _ := os.Getwd()
+	if _, err := os.Stat(filepath.Join(logosDir, "std")); os.IsNotExist(err) {
+		exePath, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error finding executable: %s\n", err)
+			os.Exit(1)
+		}
+		logosDir = filepath.Dir(exePath)
+	}
+
+	// verify std directory exists
+	stdSrcDir := filepath.Join(logosDir, "std")
+	if _, err := os.Stat(stdSrcDir); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "error: cannot find std directory\n")
+		os.Exit(1)
+	}
+
+	// copy std directory to build dir
+	stdDstDir := filepath.Join(buildDir, "std")
+	if err := copyDir(stdSrcDir, stdDstDir); err != nil {
+		fmt.Fprintf(os.Stderr, "error copying std directory: %s\n", err)
+		os.Exit(1)
+	}
+
+	// create go.mod with replace directive pointing to local logos
+	goModContent := fmt.Sprintf(`module logos-build
+
+go 1.21
+
+require (
+    github.com/codetesla51/golexer v1.0.7
+    github.com/codetesla51/logos v0.0.0
+)
+
+replace github.com/codetesla51/logos => %s
+`, logosDir)
+	if err := os.WriteFile(filepath.Join(buildDir, "go.mod"), []byte(goModContent), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "error writing go.mod: %s\n", err)
+		os.Exit(1)
+	}
+
+	// copy go.sum from logos dir
+	goSumSrc := filepath.Join(logosDir, "go.sum")
+	if err := copyFile(goSumSrc, filepath.Join(buildDir, "go.sum")); err != nil {
+		// go.sum might not exist, that's okay for local builds
+		_ = err
+	}
+
+	// copy user modules to std directory (so they're embedded and found via StdFs)
+	for _, mod := range userModules {
+		srcPath := filepath.Join(baseDir, mod+".lgs")
+		dstPath := filepath.Join(stdDstDir, mod+".lgs")
+		modData, err := os.ReadFile(srcPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error reading module %q: %s\n", mod, err)
+			os.Exit(1)
+		}
+		if err := os.WriteFile(dstPath, modData, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing module %q: %s\n", mod, err)
+			os.Exit(1)
+		}
+	}
+
+	goFile := filepath.Join(buildDir, "main.go")
 	goSource := fmt.Sprintf(`package main
 
 import (
@@ -73,7 +187,7 @@ import (
 var stdFiles embed.FS
 
 const script = %s%s%s
-const filename = %s
+const filename = %s%s%s
 
 func main() {
     lexer := golexer.NewLexer(script)
@@ -93,19 +207,33 @@ func main() {
         os.Exit(1)
     }
 }
-`, "`", source, "`", path)
-	err = os.WriteFile(goFile, []byte(goSource), 0644)
-	if err != nil {
+`, "`", source, "`", "`", path, "`")
+
+	if err := os.WriteFile(goFile, []byte(goSource), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing build file: %s\n", err)
 		os.Exit(1)
 	}
 
-	cmd := exec.Command("go", "build", "-o", outputName, goFile)
+	// get absolute path for output since we're building from temp dir
+	outputPath := outputName
+	if !filepath.IsAbs(outputName) {
+		cwd, _ := os.Getwd()
+		outputPath = filepath.Join(cwd, outputName)
+	}
+
+	// run go mod tidy to resolve dependencies
+	tidyCmd := exec.Command("go", "mod", "tidy")
+	tidyCmd.Dir = buildDir
+	if out, err := tidyCmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "go mod tidy failed: %s\n%s\n", err, out)
+		os.Exit(1)
+	}
+
+	cmd := exec.Command("go", "build", "-o", outputPath, ".")
+	cmd.Dir = buildDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
-
-	os.Remove(goFile)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "build failed\n")
@@ -113,6 +241,40 @@ func main() {
 	}
 
 	fmt.Printf("Built: %s\n", outputName)
+}
+
+// copyDir recursively copies a directory
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(dstPath, data, info.Mode())
+	})
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
 }
 func formatFile(path string) {
 	data, err := os.ReadFile(path)
@@ -177,7 +339,8 @@ func runFile(path string) {
 func runREPL() {
 	scanner := bufio.NewScanner(os.Stdin)
 	inter := interpreter.NewInterpreter(stdFiles)
-	fmt.Printf("Logos v%s — REPL (ctrl+c to exit)\n", VERSION)
+	fmt.Printf(">_ Logos v%s (%s) on %s\n", VERSION, time.Now().Format("Jan 02 2006, 15:04:05"), runtime.GOOS)
+	fmt.Printf("Type \"help\" for more information\n")
 	for {
 		fmt.Print(PROMPT)
 		if !scanner.Scan() {
@@ -223,14 +386,21 @@ func formatAll(dir string) {
 }
 
 func printHelp() {
-	fmt.Printf(`Logos v%s - A scripting language
-
-Usage:
-  lgs               Start the REPL
-  lgs <file.lgs>    Run a .lgs file
-  lgs --version     Print version
-  lgs --help        Print this help message
-`, VERSION)
+	fmt.Printf("\033[36m>_ Logos v%s\033[0m\n\n", VERSION)
+	fmt.Printf("\033[1mUSAGE:\033[0m\n")
+	fmt.Printf("  lgs                    Start the REPL\n")
+	fmt.Printf("  lgs <file.lgs>         Run a .lgs file\n")
+	fmt.Printf("  lgs fmt <file.lgs>     Format a file\n")
+	fmt.Printf("  lgs fmt .              Format all .lgs files\n")
+	fmt.Printf("  lgs build <file.lgs>   Compile to binary\n")
+	fmt.Printf("  lgs --version          Print version\n")
+	fmt.Printf("  lgs --help             Print this message\n")
+	fmt.Printf("\n\033[1mEXAMPLES:\033[0m\n")
+	fmt.Printf("  lgs script.lgs\n")
+	fmt.Printf("  lgs fmt .\n")
+	fmt.Printf("  lgs build app.lgs\n")
+	fmt.Printf("\n\033[1mDOCS:\033[0m\n")
+	fmt.Printf(" https://github.com/codetesla51/logos-lang.git\n")
 }
 
 func main() {

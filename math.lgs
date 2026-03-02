@@ -1,3 +1,0 @@
-use "std/math"
-print(x)
-print(mathFactorial(5))

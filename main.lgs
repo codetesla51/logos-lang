@@ -1,2 +1,0 @@
-let name = fn(x) -> x + 1
-print(name(5))
