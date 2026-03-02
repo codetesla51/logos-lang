@@ -1,0 +1,9 @@
+# Ignore build artifacts
+dist/
+
+# Editor temp files
+*.swp
+*.swo
+
+# OS files
+.DS_Store
