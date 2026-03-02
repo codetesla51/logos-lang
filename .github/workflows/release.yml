@@ -17,15 +17,18 @@ jobs:
         with:
           go-version: "1.21"
 
-      - name: Install goreleaser (via go install)
+      - name: Install goreleaser (prebuilt)
         run: |
-          # install latest goreleaser using go install
-          go install github.com/goreleaser/goreleaser@latest
-          # ensure GOPATH/bin is on PATH
-          echo "::add-path::$(go env GOPATH)/bin"
+          set -eux
+          ARCHIVE=/tmp/goreleaser.tar.gz
+          # download prebuilt goreleaser for linux x86_64 (runner)
+          curl -sSfL -o "$ARCHIVE" https://github.com/goreleaser/goreleaser/releases/latest/download/goreleaser_Linux_x86_64.tar.gz
+          tar -xzf "$ARCHIVE" -C /tmp
+          sudo mv /tmp/goreleaser /usr/local/bin/goreleaser
 
       - name: Run goreleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $(go env GOPATH)/bin/goreleaser release --rm-dist
+          set -eux
+          goreleaser release --rm-dist
