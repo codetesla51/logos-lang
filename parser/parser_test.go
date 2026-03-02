@@ -814,7 +814,7 @@ func TestTableLiterals(t *testing.T) {
 		{`table{"a": 1 + 2, "b": 3 * 4}`, `table{"a":(1 + 2), "b":(3 * 4)}`},
 	}
 	for _, tt := range testCases {
-		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
 		program := p.Parse()
 		if len(p.Errors()) != 0 {
@@ -840,7 +840,7 @@ func TestForInStatements(t *testing.T) {
 		{"for x in a + b { x; }", "for x in (a + b) {x}"},
 	}
 	for _, tt := range testCases {
-		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
 		program := p.Parse()
 		if len(p.Errors()) != 0 {
@@ -864,7 +864,7 @@ func TestNullExpression(t *testing.T) {
 		{"let x = null; let y = null;", "let x = null;let y = null;"},
 	}
 	for _, tt := range testCases {
-		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
 		program := p.Parse()
 		if len(p.Errors()) != 0 {
@@ -893,7 +893,7 @@ func TestArrowFunctions(t *testing.T) {
 		{"fn(x) -> x > 0", "fn(x){return (x > 0);}"},
 	}
 	for _, tt := range testCases {
-		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
 		program := p.Parse()
 		if len(p.Errors()) != 0 {
@@ -1082,7 +1082,7 @@ func TestSwitchStatements(t *testing.T) {
 		},
 	}
 	for _, tt := range testCases {
-		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
 		program := p.Parse()
 		if len(p.Errors()) != 0 {
@@ -1116,7 +1116,7 @@ func TestArrowFunctionAdvanced(t *testing.T) {
 		{"fn(x) -> x + 1", "fn(x){return (x + 1);}"},
 	}
 	for _, tt := range testCases {
-		l := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+		l := golexer.NewLexer(tt.input)
 		p := NewParser(l)
 		program := p.Parse()
 		if len(p.Errors()) != 0 {
@@ -1190,7 +1190,7 @@ func TestUse(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			l := golexer.NewLexer(tc.input)
 			p := NewParser(l)
 			program := p.Parse()
 			if len(p.Errors()) != 0 {
@@ -1271,7 +1271,7 @@ func TestSpawnStatement(t *testing.T) {
 	}
 	for _, tc := range testCase {
 		t.Run(tc.decs, func(t *testing.T) {
-			l := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			l := golexer.NewLexer(tc.input)
 			p := NewParser(l)
 			program := p.Parse()
 			if len(p.Errors()) != 0 {

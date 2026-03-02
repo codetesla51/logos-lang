@@ -1,3 +1,6 @@
+// std/math - Mathematical functions and algorithms.
+// Includes fibonacci, factorial, mean, median, mode, clamp, lerp, isPrime, gcd, lcm.
+
 use "std/array"
 let mathFib = fn(n) {
     if n <= 1 {

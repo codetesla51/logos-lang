@@ -1,3 +1,6 @@
+// std/array - Functional array utilities for transforming, filtering, and aggregating arrays.
+// Provides map, filter, reduce, unique, flat, sum, min, max, chunk, indexOf, and more.
+
 let map = fn(arr, func) {
     let result = []
     for item in arr {
@@ -5,7 +8,6 @@ let map = fn(arr, func) {
     }
     return result
 }
-
 let filter = fn(arr, func) {
     let result = []
     for item in arr {
@@ -15,7 +17,6 @@ let filter = fn(arr, func) {
     }
     return result
 }
-
 let reduce = fn(arr, func, initial) {
     let acc = initial
     for item in arr {
@@ -23,7 +24,6 @@ let reduce = fn(arr, func, initial) {
     }
     return acc
 }
-
 let unique = fn(arr) {
     let result = []
     for item in arr {
@@ -33,7 +33,6 @@ let unique = fn(arr) {
     }
     return result
 }
-
 let flat = fn(arr) {
     let result = []
     for item in arr {
@@ -48,7 +47,6 @@ let flat = fn(arr) {
     }
     return result
 }
-
 let copy = fn(arr) {
     let result = []
     for item in arr {
@@ -56,7 +54,6 @@ let copy = fn(arr) {
     }
     return result
 }
-
 let sum = fn(arr) {
     let sum = 0
     for item in arr {
@@ -64,7 +61,6 @@ let sum = fn(arr) {
     }
     return sum
 }
-
 let min = fn(arr) {
     if len(arr) == 0 {
         print("error: min() called on empty array")
@@ -78,7 +74,6 @@ let min = fn(arr) {
     }
     return min
 }
-
 let max = fn(arr) {
     if len(arr) == 0 {
         print("error: max() called on empty array")
@@ -92,7 +87,6 @@ let max = fn(arr) {
     }
     return max
 }
-
 let containsAll = fn(arr, items) {
     for item in items {
         if !contains(arr, item) {
@@ -101,7 +95,6 @@ let containsAll = fn(arr, items) {
     }
     return true
 }
-
 let chunk = fn(arr, size) {
     let result = []
     let i = 0
@@ -115,7 +108,6 @@ let chunk = fn(arr, size) {
     }
     return result
 }
-
 let indexOf = fn(arr, val) {
     let i = 0
     for item in arr {
@@ -126,8 +118,6 @@ let indexOf = fn(arr, val) {
     }
     return -1
 }
-
-// backwards compat aliases
 let arrayMap = map
 let arrayFilter = filter
 let arrayReduce = reduce

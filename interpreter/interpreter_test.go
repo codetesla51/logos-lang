@@ -492,7 +492,7 @@ func TestArrayIndexExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			lexer := golexer.NewLexerWithConfig(tt.input, "../tokens.json")
+			lexer := golexer.NewLexer(tt.input)
 			p := parser.NewParser(lexer)
 			program := p.Parse()
 			inter := NewInterpreter()
@@ -563,7 +563,7 @@ func TestForLoop(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			lexer := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			lexer := golexer.NewLexer(tc.input)
 			p := parser.NewParser(lexer)
 			program := p.Parse()
 			i := NewInterpreter()
@@ -671,7 +671,7 @@ func TestSwitchStatement(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			lexer := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			lexer := golexer.NewLexer(tc.input)
 			p := parser.NewParser(lexer)
 			program := p.Parse()
 			i := NewInterpreter()
@@ -979,7 +979,7 @@ func TestSwitchStatementEval(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			lexer := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			lexer := golexer.NewLexer(tc.input)
 			p := parser.NewParser(lexer)
 			program := p.Parse()
 			i := NewInterpreter()
@@ -1060,7 +1060,7 @@ func TestSpawnEval(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := golexer.NewLexerWithConfig(tc.input, "../tokens.json")
+			l := golexer.NewLexer(tc.input)
 			p := parser.NewParser(l)
 			program := p.Parse()
 			i := NewInterpreter()

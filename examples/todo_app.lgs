@@ -1,0 +1,246 @@
+// todo_app.lgs - Simple command-line todo list manager
+
+let printBanner = fn() {
+    print(colorBold(colorCyan("╔═══════════════════════════╗")))
+    print(colorBold(colorCyan("║        Todo App           ║")))
+    print(colorBold(colorCyan("╚═══════════════════════════╝")))
+    print("")
+}
+
+let todoFile = "todos.json"
+let todos = []
+
+let loadTodos = fn() {
+    if !fileExists(todoFile) {
+        return []
+    }
+    let res = fileRead(todoFile)
+    if !res.ok {
+        return []
+    }
+    let parsed = jsonParse(res.value)
+    if parsed == null {
+        return []
+    }
+    return parsed
+}
+
+let saveTodos = fn() {
+    let json = jsonStringify(todos)
+    let res = fileWrite(todoFile, json)
+    return res.ok
+}
+
+let listTodos = fn() {
+    if len(todos) == 0 {
+        print(colorYellow("  No todos yet. Add one with 'add <task>'"))
+        return null
+    }
+    let i = 0
+    for i < len(todos) {
+        let todo = todos[i]
+        let status = ""
+        let taskText = ""
+        if todo["done"] {
+            status = colorGreen("[x]")
+            taskText = colorWhite(todo["task"])
+        } else {
+            status = colorYellow("[ ]")
+            taskText = colorCyan(todo["task"])
+        }
+        let priority = ""
+        if todo["priority"] == "high" {
+            priority = colorRed(" !")
+        }
+        if todo["priority"] == "medium" {
+            priority = colorYellow(" ~")
+        }
+        print("  " + toStr(i + 1) + ". " + status + " " + taskText + priority)
+        i = i + 1
+    }
+}
+
+let addTodo = fn(task, priority) {
+    let todo = table{
+        "task": task,
+        "done": false,
+        "priority": priority,
+        "created": dateTimeStr(),
+    }
+    todos = push(todos, todo)
+    saveTodos()
+    print(colorGreen("Added: " + task))
+}
+
+let completeTodo = fn(index) {
+    if index < 1 || index > len(todos) {
+        print(colorRed("Invalid todo number"))
+        return null
+    }
+    let todo = todos[index - 1]
+    todo["done"] = true
+    todos[index - 1] = todo
+    saveTodos()
+    print(colorGreen("Completed: " + todo["task"]))
+}
+
+let deleteTodo = fn(index) {
+    if index < 1 || index > len(todos) {
+        print(colorRed("Invalid todo number"))
+        return null
+    }
+    let task = todos[index - 1]["task"]
+    let newTodos = []
+    let i = 0
+    for i < len(todos) {
+        if i != index - 1 {
+            newTodos = push(newTodos, todos[i])
+        }
+        i = i + 1
+    }
+    todos = newTodos
+    saveTodos()
+    print(colorRed("Deleted: " + task))
+}
+
+let clearCompleted = fn() {
+    let newTodos = []
+    let cleared = 0
+    for todo in todos {
+        if !todo["done"] {
+            newTodos = push(newTodos, todo)
+        } else {
+            cleared = cleared + 1
+        }
+    }
+    todos = newTodos
+    saveTodos()
+    print(colorGreen("Cleared " + toStr(cleared) + " completed todo(s)"))
+}
+
+let showStats = fn() {
+    let total = len(todos)
+    let done = 0
+    let pending = 0
+    let high = 0
+    for todo in todos {
+        if todo["done"] {
+            done = done + 1
+        } else {
+            pending = pending + 1
+        }
+        if todo["priority"] == "high" && !todo["done"] {
+            high = high + 1
+        }
+    }
+    print(colorBold("Stats:"))
+    print("  Total:    " + toStr(total))
+    print("  " + colorGreen("Done:     " + toStr(done)))
+    print("  " + colorYellow("Pending:  " + toStr(pending)))
+    if high > 0 {
+        print("  " + colorRed("High priority: " + toStr(high)))
+    }
+}
+
+let showHelp = fn() {
+    print(colorBold("Commands:"))
+    print("  " + colorCyan("list") + "              - Show all todos")
+    print("  " + colorCyan("add <task>") + "        - Add a new todo")
+    print("  " + colorCyan("add! <task>") + "       - Add high priority todo")
+    print("  " + colorCyan("done <number>") + "     - Mark todo as complete")
+    print("  " + colorCyan("del <number>") + "      - Delete a todo")
+    print("  " + colorCyan("clear") + "             - Remove completed todos")
+    print("  " + colorCyan("stats") + "             - Show statistics")
+    print("  " + colorCyan("help") + "              - Show this help")
+    print("  " + colorCyan("quit") + "              - Exit")
+}
+
+printBanner()
+todos = loadTodos()
+print(colorGreen("Loaded " + toStr(len(todos)) + " todo(s)"))
+print("")
+showHelp()
+print("")
+
+let running = true
+for running {
+    let input = trim(prompt(colorBold("todo> ")))
+    if len(input) == 0 {
+        continue
+    }
+
+    let parts = split(input, " ")
+    let cmd = lower(parts[0])
+
+    if cmd == "quit" || cmd == "q" || cmd == "exit" {
+        running = false
+    }
+
+    if cmd == "list" || cmd == "ls" {
+        print("")
+        listTodos()
+        print("")
+    }
+
+    if cmd == "add" {
+        if len(parts) < 2 {
+            print(colorRed("Usage: add <task>"))
+        } else {
+            let task = join(slice(parts, 1, len(parts)), " ")
+            addTodo(task, "normal")
+        }
+    }
+
+    if cmd == "add!" {
+        if len(parts) < 2 {
+            print(colorRed("Usage: add! <task>"))
+        } else {
+            let task = join(slice(parts, 1, len(parts)), " ")
+            addTodo(task, "high")
+        }
+    }
+
+    if cmd == "done" {
+        if len(parts) < 2 {
+            print(colorRed("Usage: done <number>"))
+        } else {
+            let index = toInt(parts[1])
+            if index == null {
+                print(colorRed("Invalid number"))
+            } else {
+                completeTodo(index)
+            }
+        }
+    }
+
+    if cmd == "del" || cmd == "delete" || cmd == "rm" {
+        if len(parts) < 2 {
+            print(colorRed("Usage: del <number>"))
+        } else {
+            let index = toInt(parts[1])
+            if index == null {
+                print(colorRed("Invalid number"))
+            } else {
+                deleteTodo(index)
+            }
+        }
+    }
+
+    if cmd == "clear" {
+        clearCompleted()
+    }
+
+    if cmd == "stats" {
+        print("")
+        showStats()
+        print("")
+    }
+
+    if cmd == "help" || cmd == "?" {
+        print("")
+        showHelp()
+        print("")
+    }
+}
+
+print(colorYellow("Goodbye!"))

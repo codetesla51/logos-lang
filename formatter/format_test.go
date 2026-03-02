@@ -8,7 +8,7 @@ import (
 )
 
 func format(input string) string {
-	lexer := golexer.NewLexerWithConfig(input, "../tokens.json")
+	lexer := golexer.NewLexer(input)
 	p := parser.NewParser(lexer)
 	program := p.Parse()
 	f := New()
@@ -90,32 +90,51 @@ func TestFormatIfExpression(t *testing.T) {
 		})
 	}
 }
-
-func TestFormatFunctionLiteral(t *testing.T) {
+func TestFormatArrowFunction(t *testing.T) {
 	testCases := []struct {
 		input    string
 		expected string
 		desc     string
 	}{
 		{
-			"fn() { 5 }",
-			"fn() {\n    5\n}\n",
-			"no params",
+			"fn(x) -> x",
+			"fn(x) -> x\n",
+			"basic arrow",
 		},
 		{
-			"fn(x) { x }",
-			"fn(x) {\n    x\n}\n",
-			"one param",
+			"fn(x) -> x + 1",
+			"fn(x) -> x + 1\n",
+			"arrow with expression",
 		},
 		{
-			"fn(x, y) { x + y }",
-			"fn(x, y) {\n    x + y\n}\n",
-			"two params",
+			"fn(x, y) -> x + y",
+			"fn(x, y) -> x + y\n",
+			"arrow two params",
 		},
 		{
-			"let add = fn(x, y) { x + y }",
-			"let add = fn(x, y) {\n    x + y\n}\n",
-			"named function",
+			"fn() -> 42",
+			"fn() -> 42\n",
+			"arrow no params",
+		},
+		{
+			"let double = fn(x) -> x * 2",
+			"let double = fn(x) -> x * 2\n",
+			"arrow in let",
+		},
+		{
+			"fn(x) -> x > 0",
+			"fn(x) -> x > 0\n",
+			"arrow with comparison",
+		},
+		{
+			"fn(x, y) -> x && y",
+			"fn(x, y) -> x && y\n",
+			"arrow with logical",
+		},
+		{
+			"fn(x) -> fn(y) -> x + y",
+			"fn(x) -> fn(y) -> x + y\n",
+			"nested arrow",
 		},
 	}
 	for _, tc := range testCases {
@@ -306,6 +325,89 @@ func TestFormatIndentation(t *testing.T) {
 			"for x < 5 { if x > 3 { break } }",
 			"for x < 5 {\n    if x > 3 {\n        break\n    }\n}\n",
 			"nested for if",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := format(tc.input)
+			if got != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, got)
+			}
+		})
+	}
+}
+func TestFormatSpawn(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{
+			"spawn { print(x) }",
+			"spawn {\n    print(x)\n}\n",
+			"basic spawn block",
+		},
+		{
+			"spawn {}",
+			"spawn {\n}\n",
+			"empty spawn block",
+		},
+		{
+			"spawn { let x = 1 }",
+			"spawn {\n    let x = 1\n}\n",
+			"spawn with let",
+		},
+		{
+			"spawn { print(x) print(y) }",
+			"spawn {\n    print(x)\n    print(y)\n}\n",
+			"spawn multiple statements",
+		},
+		{
+			"spawn { if x > 0 { print(x) } }",
+			"spawn {\n    if x > 0 {\n        print(x)\n    }\n}\n",
+			"spawn with nested if",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := format(tc.input)
+			if got != tc.expected {
+				t.Errorf("[%s] expected %q, got %q", tc.desc, tc.expected, got)
+			}
+		})
+	}
+}
+
+func TestFormatSpawnForIn(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{
+			"spawn for item in arr { print(item) }",
+			"spawn for item in arr {\n    print(item)\n}\n",
+			"basic spawn for in",
+		},
+		{
+			"spawn for item in arr {}",
+			"spawn for item in arr {\n}\n",
+			"empty spawn for in body",
+		},
+		{
+			"spawn for item in arr { let x = item }",
+			"spawn for item in arr {\n    let x = item\n}\n",
+			"spawn for in with let",
+		},
+		{
+			"spawn for item in arr { print(item) print(item) }",
+			"spawn for item in arr {\n    print(item)\n    print(item)\n}\n",
+			"spawn for in multiple statements",
+		},
+		{
+			"spawn for item in arr { if item > 0 { print(item) } }",
+			"spawn for item in arr {\n    if item > 0 {\n        print(item)\n    }\n}\n",
+			"spawn for in with nested if",
 		},
 	}
 	for _, tc := range testCases {

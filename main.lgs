@@ -1,8 +1,2 @@
-let sayHello = fn(name) {
-    return "hello " + name
-}
-spawn {
-    print(sayHello("hi"))
-    print(sayHello("uthman"))
-}
-print("hey")
+let name = fn(x) -> x + 1
+print(name(5))

@@ -2,59 +2,135 @@ use "std/testing"
 use "std/math"
 use "std/array"
 use "std/string"
-
-// --- math ---
+use "std/path"
+use "std/time"
+use "std/log"
 suite("std/math", fn() {
     assert("mathFactorial(5)", mathFactorial(5), 120)
     assert("mathFactorial(0)", mathFactorial(0), 1)
-
     assert("mathFib(1)", mathFib(1), 1)
     assert("mathFib(7)", mathFib(7), 13)
-
-    assert("mathClamp low",  mathClamp(2, 5, 10), 5)
-    assert("mathClamp in",   mathClamp(7, 5, 10), 7)
+    assert("mathClamp low", mathClamp(2, 5, 10), 5)
+    assert("mathClamp in", mathClamp(7, 5, 10), 7)
     assert("mathClamp high", mathClamp(15, 5, 10), 10)
-
-    assert("mathIsPrime(7)",  mathIsPrime(7),  true)
+    assert("mathIsPrime(7)", mathIsPrime(7), true)
     assert("mathIsPrime(10)", mathIsPrime(10), false)
-
     assert("mathGcd(12, 8)", mathGcd(12, 8), 4)
-    assert("mathLcm(4, 6)",  mathLcm(4, 6),  12)
-
-    assert("mathMean",   mathMean([1, 2, 3, 4, 5]), 3)
+    assert("mathLcm(4, 6)", mathLcm(4, 6), 12)
+    assert("mathMean", mathMean([1, 2, 3, 4, 5]), 3)
     assert("mathMedian", mathMedian([1, 2, 3, 4, 5]), 3)
 })
-
-// --- array ---
 suite("std/array", fn() {
-    assert("arrayMap",    arrayMap([1, 2, 3], fn(x) { x * 2 }), [2, 4, 6])
-    assert("arrayFilter", arrayFilter([1, 2, 3, 4], fn(x) { x > 2 }), [3, 4])
-    assert("arrayReduce", arrayReduce([1, 2, 3, 4], fn(acc, x) { acc + x }, 0), 10)
-
-    assert("arraySum",  arraySum([1, 2, 3, 4, 5]), 15)
-    assert("arrayMin",  arrayMin([3, 1, 4, 1, 5]), 1)
-    assert("arrayMax",  arrayMax([3, 1, 4, 1, 5]), 5)
-
-    assert("arrayUnique",   arrayUnique([1, 2, 2, 3, 3]), [1, 2, 3])
-    assert("arrayFlat",     arrayFlat([[1, 2], [3, 4]]), [1, 2, 3, 4])
+    assert("arrayMap", arrayMap([1, 2, 3], fn(x) {
+        x * 2
+    }), [2, 4, 6])
+    assert("arrayFilter", arrayFilter([1, 2, 3, 4], fn(x) {
+        x > 2
+    }), [3, 4])
+    assert("arrayReduce", arrayReduce([1, 2, 3, 4], fn(acc, x) {
+        acc + x
+    }, 0), 10)
+    assert("arraySum", arraySum([1, 2, 3, 4, 5]), 15)
+    assert("arrayMin", arrayMin([3, 1, 4, 1, 5]), 1)
+    assert("arrayMax", arrayMax([3, 1, 4, 1, 5]), 5)
+    assert("arrayUnique", arrayUnique([1, 2, 2, 3, 3]), [1, 2, 3])
+    assert("arrayFlat", arrayFlat([[1, 2], [3, 4]]), [1, 2, 3, 4])
     assert("arrayContains", arrayContainsAll([1, 2, 3], [1, 2]), true)
-    assert("arrayIndexOf",  arrayIndexOf([10, 20, 30], 20), 1)
-
+    assert("arrayIndexOf", arrayIndexOf([10, 20, 30], 20), 1)
     assert("arrayChunk", arrayChunk([1, 2, 3, 4], 2), [[1, 2], [3, 4]])
 })
-
-// --- string ---
 suite("std/string", fn() {
-    assert("strReverse",     strReverse("hello"),       "olleh")
-    assert("strCapitalize",  strCapitalize("hello"),    "Hello")
-    assert("strIsPalindrome true",  strIsPalindrome("racecar"), true)
-    assert("strIsPalindrome false", strIsPalindrome("hello"),   false)
-    assert("strIsEmpty true",  strIsEmpty(""),      true)
+    assert("strReverse", strReverse("hello"), "olleh")
+    assert("strCapitalize", strCapitalize("hello"), "Hello")
+    assert("strIsPalindrome true", strIsPalindrome("racecar"), true)
+    assert("strIsPalindrome false", strIsPalindrome("hello"), false)
+    assert("strIsEmpty true", strIsEmpty(""), true)
     assert("strIsEmpty false", strIsEmpty("hello"), false)
-    assert("strCount",    strCount("hello", "l"),   2)
-    assert("strRepeat",   strRepeat("ab", 3),        "ababab")
+    assert("strCount", strCount("hello", "l"), 2)
+    assert("strRepeat", strRepeat("ab", 3), "ababab")
     assert("strPadStart", strPadStart("5", 3, "0"), "005")
-    assert("strPadEnd",   strPadEnd("5", 3, "0"),   "500")
+    assert("strPadEnd", strPadEnd("5", 3, "0"), "500")
 })
+suite("std/path", fn() {
+    assert("pathJoin basic", pathJoin(["home", "user", "file.txt"]), "home/user/file.txt")
+    assert("pathJoin trailing slash", pathJoin(["home/", "user", "file.txt"]), "home/user/file.txt")
+    assert("pathJoin leading slash", pathJoin(["home", "/user", "file.txt"]), "home/user/file.txt")
+    assert("pathJoin single", pathJoin(["home"]), "home")
+    assert("pathJoin empty", pathJoin([]), "")
+    assert("pathBase basic", pathBase("home/user/file.txt"), "file.txt")
+    assert("pathBase no dir", pathBase("file.txt"), "file.txt")
+    assert("pathBase nested", pathBase("a/b/c/d.txt"), "d.txt")
+    assert("pathDir basic", pathDir("home/user/file.txt"), "home/user")
+    assert("pathDir single", pathDir("home/file.txt"), "home")
+    assert("pathExt basic", pathExt("file.txt"), ".txt")
+    assert("pathExt no ext", pathExt("file"), "")
+    assert("pathExt nested", pathExt("home/user/file.lgs"), ".lgs")
+    assert("pathExt dotfile", pathExt(".gitignore"), ".gitignore")
+    assert("pathIsAbs true", pathIsAbs("/home/user"), true)
+    assert("pathIsAbs false", pathIsAbs("home/user"), false)
+    assert("pathIsAbs empty", pathIsAbs(""), false)
+    assert("pathClean double slash", pathClean("home//user"), "home/user")
+    assert("pathClean dot", pathClean("home/./user"), "home/user")
+    assert("pathClean dotdot", pathClean("home/user/../user"), "home/user")
+    assert("pathClean abs", pathClean("/home//user"), "/home/user")
+    assert("pathWithoutExt basic", pathWithoutExt("file.txt"), "file")
+    assert("pathWithoutExt nested", pathWithoutExt("home/user/file.txt"), "home/user/file")
+    assert("pathWithoutExt no ext", pathWithoutExt("file"), "file")
+})
+suite("std/datetime", fn() {
+    let now = datetimeNow()
+    assert("datetimeNow has timestamp", type(now["timestamp"]) == "INTEGER", true)
+    assert("datetimeNow has str", type(now["str"]) == "STRING", true)
+    assert("datetimeNow has date", type(now["date"]) == "STRING", true)
+    assert("datetimeNow has time", type(now["time"]) == "STRING", true)
+    let dt1 = datetimeFromTimestamp(1000)
+    let dt2 = datetimeFromTimestamp(2000)
+    assert("datetimeFromTimestamp", dt1["timestamp"], 1000)
+    assert("datetimeIsAfter true", datetimeIsAfter(dt2, dt1), true)
+    assert("datetimeIsAfter false", datetimeIsAfter(dt1, dt2), false)
+    assert("datetimeIsBefore true", datetimeIsBefore(dt1, dt2), true)
+    assert("datetimeIsBefore false", datetimeIsBefore(dt2, dt1), false)
+    assert("datetimeIsEqual true", datetimeIsEqual(dt1, dt1), true)
+    assert("datetimeIsEqual false", datetimeIsEqual(dt1, dt2), false)
+    assert("datetimeDiff seconds", datetimeDiff(dt2, dt1, "seconds"), 1000)
+    assert("datetimeDiff minutes", datetimeDiff(dt2, dt1, "minutes"), 16)
+    assert("datetimeDiff hours", datetimeDiff(dt2, dt1, "hours"), 0)
+    let dt3 = datetimeFromTimestamp(0)
+    let dt4 = datetimeAdd(dt3, 1, "hours")
+    assert("datetimeAdd hours", dt4["timestamp"], 3600)
+    let dt5 = datetimeAdd(dt3, 1, "days")
+    assert("datetimeAdd days", dt5["timestamp"], 86400)
+    let dt6 = datetimeAdd(dt3, 1, "weeks")
+    assert("datetimeAdd weeks", dt6["timestamp"], 604800)
+    let dt7 = datetimeAdd(dt3, 30, "minutes")
+    assert("datetimeAdd minutes", dt7["timestamp"], 1800)
+    let dt8 = datetimeAdd(dt3, 30, "seconds")
+    assert("datetimeAdd seconds", dt8["timestamp"], 30)
+    let dt9 = datetimeFromTimestamp(7200)
+    let dt10 = datetimeSubtract(dt9, 1, "hours")
+    assert("datetimeSubtract hours", dt10["timestamp"], 3600)
+    assert("datetimeToStr", type(datetimeToStr(now)), "STRING")
+})
+suite("std/log", fn() {
+    assert("LOG_DEBUG value",   LOG_DEBUG,   "DEBUG")
+    assert("LOG_INFO value",    LOG_INFO,    "INFO")
+    assert("LOG_WARN value",    LOG_WARN,    "WARN")
+    assert("LOG_ERROR value",   LOG_ERROR,   "ERROR")
 
+    assert("default log level", _logLevel,  "DEBUG")
+    assert("default logToFile", _logToFile, false)
+    assert("default logFile",   _logFile,   "app.log")
+
+    logDebug("debug message")
+    assert("logDebug runs without error", true, true)
+
+    logInfo("info message")
+    assert("logInfo runs without error", true, true)
+
+    logWarn("warn message")
+    assert("logWarn runs without error", true, true)
+
+    logError("error message")
+    assert("logError runs without error", true, true)
+})
 summary()

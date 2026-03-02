@@ -1,0 +1,61 @@
+// std/log - Structured logging with levels and optional file output.
+// Supports DEBUG, INFO, WARN, ERROR levels with colored console output.
+
+let LOG_DEBUG = "DEBUG"
+let LOG_INFO = "INFO"
+let LOG_WARN = "WARN"
+let LOG_ERROR = "ERROR"
+let _logLevel = "DEBUG"
+let _logToFile = false
+let _logFile = "app.log"
+let _logLevelValue = fn(level) {
+    if level == "DEBUG" {
+        return 0
+    }
+    if level == "INFO" {
+        return 1
+    }
+    if level == "WARN" {
+        return 2
+    }
+    if level == "ERROR" {
+        return 3
+    }
+    return 0
+}
+
+let _logWrite = fn(level, message) {
+    if _logLevelValue(level) < _logLevelValue(_logLevel) {
+        return null
+    }
+    let ts = dateTimeStr()
+    let line = "[" + ts + "] [" + level + "] " + message
+    if level == "DEBUG" {
+        print(colorWhite(line))
+    }
+    if level == "INFO" {
+        print(colorGreen(line))
+    }
+    if level == "WARN" {
+        print(colorYellow(line))
+    }
+    if level == "ERROR" {
+        print(colorRed(line))
+    }
+    if _logToFile {
+        fileAppend(_logFile, line + "
+")
+    }
+}
+let logDebug = fn(message) {
+    _logWrite(LOG_DEBUG, message)
+}
+let logInfo = fn(message) {
+    _logWrite(LOG_INFO, message)
+}
+let logWarn = fn(message) {
+    _logWrite(LOG_WARN, message)
+}
+let logError = fn(message) {
+    _logWrite(LOG_ERROR, message)
+}

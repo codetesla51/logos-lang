@@ -45,12 +45,22 @@ type Environment struct {
 	store map[string]Object
 	outer *Environment
 }
+
+// SandboxConfig controls which built-in capabilities are available to scripts.
+type SandboxConfig struct {
+	AllowFileIO  bool
+	AllowNetwork bool
+	AllowShell   bool
+	AllowExit    bool
+}
+
 type Interpreter struct {
-	Env         *Environment
-	ModuleCache map[string]*Environment
-	StdFs       fs.FS
-	ToeknPath   string // lexer token path used when loading modules
-	CurrentFile string // currently executing file for error reporting
+	Env              *Environment
+	ModuleCache      map[string]*Environment
+	StdFs            fs.FS
+	CurrentFile      string // currently executing file for error reporting
+	Config           SandboxConfig
+	instanceBuiltins map[string]*Builtin // per-instance builtins, checked before global
 }
 type Integer struct {
 	Value int64
@@ -234,17 +244,179 @@ func (e *Environment) Update(name string, val Object) Object {
 	return nil
 }
 
-// NewInterpreter creates a new interpreter and sets the default token path
-func NewInterpreter(fsys ...fs.FS) *Interpreter {
-	i := &Interpreter{Env: NewEnvironment(),
-		ModuleCache: make(map[string]*Environment),
-		ToeknPath:   "tokens.json", // default tokens.json path for lexer
+// NewInterpreter creates a new interpreter and sets the default token path.
+// Optional arguments: first fs.FS for StdFs, second SandboxConfig for sandboxing.
+// If no SandboxConfig is provided, all capabilities are enabled by default.
+func NewInterpreter(args ...interface{}) *Interpreter {
+	// Default config allows everything
+	config := SandboxConfig{
+		AllowFileIO:  true,
+		AllowNetwork: true,
+		AllowShell:   true,
+		AllowExit:    true,
 	}
-	if len(fsys) > 0 {
-		i.StdFs = fsys[0]
+
+	var stdFs fs.FS
+
+	// Parse variadic arguments
+	for _, arg := range args {
+		switch v := arg.(type) {
+		case fs.FS:
+			stdFs = v
+		case SandboxConfig:
+			config = v
+		}
+	}
+
+	i := &Interpreter{
+		Env:              NewEnvironment(),
+		ModuleCache:      make(map[string]*Environment),
+		Config:           config,
+		instanceBuiltins: make(map[string]*Builtin),
+	}
+
+	if stdFs != nil {
+		i.StdFs = stdFs
 	}
 
 	return i
+}
+
+// isBuiltinAllowed checks if a builtin function is allowed by the sandbox config.
+func (i *Interpreter) isBuiltinAllowed(name string) bool {
+	// File I/O functions
+	fileIOFuncs := map[string]bool{
+		"fileRead": true, "fileWrite": true, "fileAppend": true,
+		"fileDelete": true, "fileDeleteAll": true, "fileCopy": true,
+		"fileMove": true, "fileMkdir": true, "fileRmdir": true,
+		"fileRename": true, "fileReadDir": true, "fileGlob": true,
+		"fileChmod": true, "fileExt": true, "fileExists": true,
+	}
+	if !i.Config.AllowFileIO && fileIOFuncs[name] {
+		return false
+	}
+
+	// Network functions
+	networkFuncs := map[string]bool{
+		"httpGet": true, "httpPost": true, "httpPatch": true, "httpDelete": true,
+	}
+	if !i.Config.AllowNetwork && networkFuncs[name] {
+		return false
+	}
+
+	// Shell functions
+	shellFuncs := map[string]bool{
+		"shell": true, "run": true,
+	}
+	if !i.Config.AllowShell && shellFuncs[name] {
+		return false
+	}
+
+	// Exit function
+	if !i.Config.AllowExit && name == "exit" {
+		return false
+	}
+
+	return true
+}
+
+// Register registers a Go function callable from Logos scripts.
+// The function is added to this interpreter instance's local builtins map,
+// so different interpreter instances can have different functions registered.
+func (i *Interpreter) Register(name string, fn BuiltinFunc) {
+	i.instanceBuiltins[name] = &Builtin{Fn: fn}
+}
+
+// SetVar converts a native Go value to a Logos Object and sets it in the interpreter environment.
+// Supported Go types: int, int64, float64, string, bool, []interface{}, map[string]interface{}, nil
+func (i *Interpreter) SetVar(name string, val interface{}) {
+	obj := GoToObject(val)
+	i.Env.Set(name, obj)
+}
+
+// GetVar gets a variable from the interpreter environment and converts it back to a native Go value.
+// Returns nil if not found.
+func (i *Interpreter) GetVar(name string) interface{} {
+	obj, ok := i.Env.Get(name)
+	if !ok {
+		return nil
+	}
+	return ObjectToGo(obj)
+}
+
+// Call looks up a function defined in the Logos script by name, converts the Go args to Logos Objects,
+// calls it, converts the result back to a Go value and returns it.
+// Returns an error if the function is not found or if evaluation returns an Error object.
+func (i *Interpreter) Call(name string, args ...interface{}) (interface{}, error) {
+	// Look up the function in the environment
+	obj, ok := i.Env.Get(name)
+	if !ok {
+		// Also check instance builtins
+		if builtin, ok := i.instanceBuiltins[name]; ok {
+			obj = builtin
+		} else if builtin, ok := builtins[name]; ok {
+			if !i.isBuiltinAllowed(name) {
+				return nil, fmt.Errorf("function '%s' is not available in sandbox mode", name)
+			}
+			obj = builtin
+		} else {
+			return nil, fmt.Errorf("function not found: %s", name)
+		}
+	}
+
+	// Convert Go args to Logos Objects
+	logoArgs := make([]Object, len(args))
+	for i, arg := range args {
+		logoArgs[i] = GoToObject(arg)
+	}
+
+	// Call the function
+	var result Object
+	switch fn := obj.(type) {
+	case *Function:
+		extendedEnv := i.extendFunctionEnv(fn, logoArgs)
+		result = i.Eval(fn.Body, extendedEnv)
+		result = i.unwrapReturnValue(result)
+	case *Builtin:
+		result = fn.Fn(logoArgs...)
+	default:
+		return nil, fmt.Errorf("'%s' is not a function", name)
+	}
+
+	// Check for errors
+	if err, ok := result.(*Error); ok {
+		return nil, fmt.Errorf("%s", err.String())
+	}
+
+	return ObjectToGo(result), nil
+}
+
+// Run evaluates a Logos source string.
+// Uses defer recover() to catch any panics and return them as errors instead of crashing the host.
+// Returns an error if the script produces an Error object.
+func (i *Interpreter) Run(source string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic during evaluation: %v", r)
+		}
+	}()
+
+	lexer := golexer.NewLexer(source)
+	p := parser.NewParser(lexer)
+	program := p.Parse()
+
+	if len(p.Errors()) != 0 {
+		return fmt.Errorf("parse errors: %v", p.Errors())
+	}
+
+	result := i.Eval(program, i.Env)
+	if result != nil {
+		if errObj, ok := result.(*Error); ok {
+			return fmt.Errorf("%s", errObj.String())
+		}
+	}
+
+	return nil
 }
 
 // isTruthy returns whether an object counts as true in conditionals
@@ -372,7 +544,16 @@ func (i *Interpreter) evalIdentifier(node *parser.Identifier, env *Environment) 
 	if val, ok := env.Get(node.Value); ok {
 		return val
 	}
+	// Check instance-specific builtins first
+	if builtin, ok := i.instanceBuiltins[node.Value]; ok {
+		return builtin
+	}
+	// Check global builtins, but respect sandbox config
 	if builtin, ok := builtins[node.Value]; ok {
+		if !i.isBuiltinAllowed(node.Value) {
+			return i.fileError(node.Token.Line, node.Token.Column,
+				"function '%s' is not available in sandbox mode", node.Value)
+		}
 		return builtin
 	}
 	return i.fileError(node.Token.Line, node.Token.Column, "identifier not found: %s", node.Value)
@@ -968,7 +1149,7 @@ func (i *Interpreter) evalUseStatement(node *parser.UseStatement, env *Environme
 			"module not found: %s", fileName)
 	}
 
-	lexer := golexer.NewLexerWithConfig(string(data), i.ToeknPath)
+	lexer := golexer.NewLexer(string(data))
 	p := parser.NewParser(lexer, fileName)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {

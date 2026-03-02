@@ -137,6 +137,11 @@ func (f *Formatter) formatFunction(e *parser.FunctionLiteral) string {
 		out.WriteString(p.String())
 	}
 	out.WriteString(") ")
+	if e.IsArrow {
+		returnStmt := e.Body.Statements[0].(*parser.ReturnStatement)
+		out.WriteString("-> " + f.formatExpression(returnStmt.ReturnValue))
+		return out.String()
+	}
 	out.WriteString(f.formatBlock(e.Body))
 	return out.String()
 }

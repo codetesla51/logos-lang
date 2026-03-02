@@ -1,0 +1,78 @@
+// std/time - Date and time utilities.
+// Provides datetime creation, formatting, comparison, arithmetic, and duration calculations.
+
+let datetimeNow = fn() {
+    return table{
+        "timestamp": timeNow(),
+        "str": dateTimeStr(),
+        "date": dateStr(),
+        "time": timeStr(),
+    }
+}
+let datetimeFromTimestamp = fn(ts) {
+    return table{
+        "timestamp": ts,
+        "str": timeFormat(ts, "2006-01-02 15:04:05"),
+        "date": timeFormat(ts, "2006-01-02"),
+        "time": timeFormat(ts, "15:04:05"),
+    }
+}
+let datetimeFormat = fn(dt, fmt) {
+    return timeFormat(dt["timestamp"], fmt)
+}
+let datetimeIsAfter = fn(dt1, dt2) {
+    return dt1["timestamp"] > dt2["timestamp"]
+}
+let datetimeIsBefore = fn(dt1, dt2) {
+    return dt1["timestamp"] < dt2["timestamp"]
+}
+let datetimeIsEqual = fn(dt1, dt2) {
+    return dt1["timestamp"] == dt2["timestamp"]
+}
+let datetimeDiff = fn(dt1, dt2, unit) {
+    let diff = dt1["timestamp"] - dt2["timestamp"]
+    if diff < 0 {
+        diff = -diff
+    }
+    if unit == "seconds" {
+        return diff
+    }
+    if unit == "minutes" {
+        return diff / 60
+    }
+    if unit == "hours" {
+        return diff / 3600
+    }
+    if unit == "days" {
+        return diff / 86400
+    }
+    if unit == "weeks" {
+        return diff / 604800
+    }
+    return diff
+}
+let datetimeAdd = fn(dt, amount, unit) {
+    let seconds = 0
+    if unit == "seconds" {
+        seconds = amount
+    }
+    if unit == "minutes" {
+        seconds = amount * 60
+    }
+    if unit == "hours" {
+        seconds = amount * 3600
+    }
+    if unit == "days" {
+        seconds = amount * 86400
+    }
+    if unit == "weeks" {
+        seconds = amount * 604800
+    }
+    return datetimeFromTimestamp(dt["timestamp"] + seconds)
+}
+let datetimeSubtract = fn(dt, amount, unit) {
+    return datetimeAdd(dt, -amount, unit)
+}
+let datetimeToStr = fn(dt) {
+    return dt["str"]
+}

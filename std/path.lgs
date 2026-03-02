@@ -1,0 +1,75 @@
+// std/path - File path manipulation utilities.
+// Provides join, base, dir, ext, clean, isAbs, exists, and withoutExt operations.
+
+let pathJoin = fn(parts) {
+    let result = ""
+    let i = 0
+    for i < len(parts) {
+        let part = trim(parts[i])
+        if len(result) == 0 {
+            result = part
+        } else {
+            if endsWith(result, "/") && startsWith(part, "/") {
+                result = result + slice(part, 1, len(part))
+            } else {
+                if !endsWith(result, "/") && !startsWith(part, "/") {
+                    result = result + "/" + part
+                } else {
+                    result = result + part
+                }
+            }
+        }
+        i = i + 1
+    }
+    return result
+}
+let pathBase = fn(path) {
+    let parts = split(path, "/")
+    return last(parts)
+}
+let pathDir = fn(path) {
+    let parts = split(path, "/")
+    let dirParts = slice(parts, 0, len(parts) - 1)
+    return join(dirParts, "/")
+}
+let pathExt = fn(path) {
+    let base = pathBase(path)
+    let idx = indexOf(base, ".")
+    if idx == -1 {
+        return ""
+    }
+    return slice(base, idx, len(base))
+}
+let pathIsAbs = fn(path) {
+    return startsWith(path, "/")
+}
+let pathClean = fn(path) {
+    let parts = split(path, "/")
+    let result = []
+    for part in parts {
+        if part == ".." {
+            if len(result) > 0 {
+                result = slice(result, 0, len(result) - 1)
+            }
+        } else {
+            if len(part) > 0 && part != "." {
+                result = push(result, part)
+            }
+        }
+    }
+    let cleaned = join(result, "/")
+    if pathIsAbs(path) {
+        cleaned = "/" + cleaned
+    }
+    return cleaned
+}
+let pathExists = fn(path) {
+    return fileExists(path)
+}
+let pathWithoutExt = fn(path) {
+    let ext = pathExt(path)
+    if len(ext) == 0 {
+        return path
+    }
+    return slice(path, 0, len(path) - len(ext))
+}

@@ -1,0 +1,168 @@
+// json_config.lgs - Read and manage JSON configuration files
+
+let printBanner = fn() {
+    print(colorBold(colorCyan("╔═══════════════════════════╗")))
+    print(colorBold(colorCyan("║     Config Manager        ║")))
+    print(colorBold(colorCyan("╚═══════════════════════════╝")))
+    print("")
+}
+
+let loadConfig = fn(path) {
+    let res = fileRead(path)
+    if !res.ok {
+        return null
+    }
+    let parsed = jsonParse(res.value)
+    if parsed == null {
+        print(colorRed("Error: invalid JSON in " + path))
+        return null
+    }
+    return parsed
+}
+
+let saveConfig = fn(path, config) {
+    let json = jsonStringify(config)
+    let res = fileWrite(path, json)
+    return res.ok
+}
+
+let printConfig = fn(config, indent) {
+    for pair in config {
+        let key = pair[0]
+        let value = pair[1]
+        let prefix = strRepeat("  ", indent)
+        if type(value) == "TABLE" {
+            print(prefix + colorCyan(key) + ":")
+            printConfig(value, indent + 1)
+        } else {
+            print(prefix + colorCyan(key) + ": " + colorYellow(toStr(value)))
+        }
+    }
+}
+
+let strRepeat = fn(str, n) {
+    let result = ""
+    let i = 0
+    for i < n {
+        result = result + str
+        i = i + 1
+    }
+    return result
+}
+
+printBanner()
+
+let configPath = trim(prompt(colorCyan("Config file path (default: config.json): ")))
+if len(configPath) == 0 {
+    configPath = "config.json"
+}
+
+let config = null
+
+if fileExists(configPath) {
+    config = loadConfig(configPath)
+    if config == null {
+        print(colorRed("Failed to load config"))
+        exit(1)
+    }
+    print(colorGreen("Loaded config from: " + configPath))
+} else {
+    print(colorYellow("Config file not found. Creating default..."))
+    config = table{
+        "app": table{
+            "name": "MyApp",
+            "version": "1.0.0",
+            "debug": false,
+        },
+        "server": table{
+            "host": "localhost",
+            "port": 8080,
+            "timeout": 30,
+        },
+        "database": table{
+            "driver": "postgres",
+            "host": "localhost",
+            "port": 5432,
+            "name": "mydb",
+        },
+    }
+    if saveConfig(configPath, config) {
+        print(colorGreen("Created: " + configPath))
+    } else {
+        print(colorRed("Failed to create config file"))
+        exit(1)
+    }
+}
+
+print("")
+print(colorBold("Current Configuration:"))
+print(colorBold("═══════════════════════════"))
+printConfig(config, 0)
+print(colorBold("═══════════════════════════"))
+print("")
+
+let editing = true
+for editing {
+    print(colorCyan("Commands: ") + "get <key>, set <key> <value>, save, quit")
+    let input = trim(prompt(colorBold("> ")))
+    let parts = split(input, " ")
+    let cmd = lower(parts[0])
+
+    if cmd == "quit" || cmd == "q" || cmd == "exit" {
+        editing = false
+    }
+
+    if cmd == "save" {
+        if saveConfig(configPath, config) {
+            print(colorGreen("Config saved to: " + configPath))
+        } else {
+            print(colorRed("Failed to save config"))
+        }
+    }
+
+    if cmd == "get" {
+        if len(parts) < 2 {
+            print(colorRed("Usage: get <key>"))
+        } else {
+            let key = parts[1]
+            if has(config, key) {
+                let value = config[key]
+                if type(value) == "TABLE" {
+                    printConfig(value, 1)
+                } else {
+                    print(colorYellow(toStr(value)))
+                }
+            } else {
+                print(colorRed("Key not found: " + key))
+            }
+        }
+    }
+
+    if cmd == "set" {
+        if len(parts) < 3 {
+            print(colorRed("Usage: set <key> <value>"))
+        } else {
+            let key = parts[1]
+            let value = parts[2]
+            let intVal = toInt(value)
+            if intVal != null {
+                config[key] = intVal
+            } else {
+                if value == "true" {
+                    config[key] = true
+                } else {
+                    if value == "false" {
+                        config[key] = false
+                    } else {
+                        config[key] = value
+                    }
+                }
+            }
+            print(colorGreen("Set " + key + " = " + value))
+        }
+    }
+
+    print("")
+}
+
+print(colorYellow("Goodbye!"))

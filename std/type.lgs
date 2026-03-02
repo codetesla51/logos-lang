@@ -1,3 +1,6 @@
+// std/type - Type checking utilities.
+// Provides isNull, isString, isInt, isFloat, isBool, isArray, isTable, isNumber, isCallable.
+
 let isNull = fn(val) {
     return type(val) == "NULL"
 }

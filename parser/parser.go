@@ -115,6 +115,7 @@ type FunctionLiteral struct {
 	Token      golexer.Token
 	Parameters []*Identifier
 	Body       *BlockStatement
+	IsArrow    bool
 }
 type CallExpression struct {
 	Token     golexer.Token
@@ -994,6 +995,7 @@ func (p *Parser) parseFunctionLiteral() Expression {
 
 	lit.Parameters = p.parseFunctionParameters()
 	if p.peekTokenIs(ARROW) {
+		lit.IsArrow = true
 		p.nextToken()
 
 		p.nextToken()

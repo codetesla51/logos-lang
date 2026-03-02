@@ -23,7 +23,7 @@ const (
 var stdFiles embed.FS
 
 func eval(input string, inter *interpreter.Interpreter) interpreter.Object {
-	lexer := golexer.NewLexerWithConfig(input, "tokens.json")
+	lexer := golexer.NewLexer(input)
 	p := parser.NewParser(lexer)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {
@@ -44,7 +44,7 @@ func buildFile(path string) {
 	source := stripShebang(string(data))
 
 	// verify it parses
-	lexer := golexer.NewLexerWithConfig(source, "tokens.json")
+	lexer := golexer.NewLexer(source)
 	p := parser.NewParser(lexer, path)
 	p.Parse()
 	if len(p.Errors()) != 0 {
@@ -64,14 +64,10 @@ import (
     "fmt"
     "io/fs"
     "os"
-    "path/filepath"
     "github.com/codetesla51/golexer/golexer"
     "github.com/codetesla51/logos/interpreter"
     "github.com/codetesla51/logos/parser"
 )
-
-//go:embed tokens.json
-var tokensJson []byte
 
 //go:embed std
 var stdFiles embed.FS
@@ -80,21 +76,7 @@ const script = %s%s%s
 const filename = %s
 
 func main() {
-    tmpDir, err := os.MkdirTemp("", "logos")
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "error: %%s\n", err)
-        os.Exit(1)
-    }
-    defer os.RemoveAll(tmpDir)
-
-    tokensPath := filepath.Join(tmpDir, "tokens.json")
-    err = os.WriteFile(tokensPath, tokensJson, 0644)
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "error: %%s\n", err)
-        os.Exit(1)
-    }
-
-    lexer := golexer.NewLexerWithConfig(script, tokensPath)
+    lexer := golexer.NewLexer(script)
     p := parser.NewParser(lexer, filename)
     program := p.Parse()
     if len(p.Errors()) != 0 {
@@ -105,7 +87,6 @@ func main() {
     }
 
     inter := interpreter.NewInterpreter(fs.FS(stdFiles))
-    inter.ToeknPath  = tokensPath
     result := inter.Eval(program, inter.Env)
     if result != nil && result.Type() == interpreter.ERROR_OBJ {
         fmt.Fprintln(os.Stderr, result.String())
@@ -140,7 +121,7 @@ func formatFile(path string) {
 		os.Exit(1)
 	}
 	source := stripShebang(string(data))
-	lexer := golexer.NewLexerWithConfig(source, "tokens.json")
+	lexer := golexer.NewLexer(source)
 	p := parser.NewParser(lexer, path)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {
@@ -177,7 +158,7 @@ func runFile(path string) {
 	source := stripShebang(string(data))
 	inter := interpreter.NewInterpreter(stdFiles)
 	inter.CurrentFile = path
-	lexer := golexer.NewLexerWithConfig(source, "tokens.json")
+	lexer := golexer.NewLexer(source)
 	p := parser.NewParser(lexer, path)
 	program := p.Parse()
 	if len(p.Errors()) != 0 {
