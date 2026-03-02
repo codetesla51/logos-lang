@@ -26,7 +26,7 @@ let loadTodos = fn() {
 }
 
 let saveTodos = fn() {
-    let json = parseJson(todos)
+    let json = toJson(todos)
     let res = fileWrite(todoFile, json)
     return res.ok
 }
