@@ -24,7 +24,7 @@ let mathMedian = fn(arr) {
     let sorted = sort(arr)
     let mid = len(sorted) / 2
     if len(sorted) % 2 == 0 {
-        return sorted[mid - 1] + sorted[mid] / 2
+        return (sorted[mid - 1] + sorted[mid]) / 2
     }
     return sorted[mid]
 }

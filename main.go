@@ -23,6 +23,7 @@ const (
 	VERSION = "0.0.1"
 )
 
+//go:embed std
 var stdFiles embed.FS
 
 func eval(input string, inter *interpreter.Interpreter) interpreter.Object {

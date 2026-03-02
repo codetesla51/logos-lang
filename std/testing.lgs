@@ -15,7 +15,7 @@ let assert = fn(name, got, expected) {
     }
 }
 let suite = fn(name, func) {
-    push(suiteNames, name)
+    suiteNames = push(suiteNames, name)
     func()
 }
 let summary = fn() {
