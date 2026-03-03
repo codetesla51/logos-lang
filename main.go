@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +21,7 @@ import (
 
 const (
 	PROMPT  = ">>> "
-	VERSION = "0.0.1"
+	VERSION = "0.1.0"
 )
 
 //go:embed std
@@ -106,54 +107,30 @@ func buildFile(path string) {
 	}
 	defer os.RemoveAll(buildDir)
 
-	// find the logos installation directory (where std, go.mod are)
-	// first try current working directory, then fall back to executable directory
-	logosDir, _ := os.Getwd()
-	if _, err := os.Stat(filepath.Join(logosDir, "std")); os.IsNotExist(err) {
-		exePath, err := os.Executable()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error finding executable: %s\n", err)
-			os.Exit(1)
-		}
-		logosDir = filepath.Dir(exePath)
-	}
-
-	// verify std directory exists
-	stdSrcDir := filepath.Join(logosDir, "std")
-	if _, err := os.Stat(stdSrcDir); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "error: cannot find std directory\n")
-		os.Exit(1)
-	}
-
-	// copy std directory to build dir
+	// extract embedded std files to build directory
 	stdDstDir := filepath.Join(buildDir, "std")
-	if err := copyDir(stdSrcDir, stdDstDir); err != nil {
-		fmt.Fprintf(os.Stderr, "error copying std directory: %s\n", err)
+	if err := os.MkdirAll(stdDstDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "error creating std directory: %s\n", err)
+		os.Exit(1)
+	}
+	if err := extractEmbeddedDir(stdFiles, "std", stdDstDir); err != nil {
+		fmt.Fprintf(os.Stderr, "error extracting std files: %s\n", err)
 		os.Exit(1)
 	}
 
-	// create go.mod with replace directive pointing to local logos
+	// create go.mod that uses the published logos module
 	goModContent := fmt.Sprintf(`module logos-build
 
 go 1.21
 
 require (
     github.com/codetesla51/golexer v1.0.7
-    github.com/codetesla51/logos v0.0.0
+    github.com/codetesla51/logos v%s
 )
-
-replace github.com/codetesla51/logos => %s
-`, logosDir)
+`, VERSION)
 	if err := os.WriteFile(filepath.Join(buildDir, "go.mod"), []byte(goModContent), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "error writing go.mod: %s\n", err)
 		os.Exit(1)
-	}
-
-	// copy go.sum from logos dir
-	goSumSrc := filepath.Join(logosDir, "go.sum")
-	if err := copyFile(goSumSrc, filepath.Join(buildDir, "go.sum")); err != nil {
-		// go.sum might not exist, that's okay for local builds
-		_ = err
 	}
 
 	// copy user modules to std directory (so they're embedded and found via StdFs)
@@ -277,6 +254,33 @@ func copyFile(src, dst string) error {
 	}
 	return os.WriteFile(dst, data, 0644)
 }
+
+// extractEmbeddedDir extracts files from an embedded FS to a destination directory
+func extractEmbeddedDir(efs embed.FS, srcDir, dstDir string) error {
+	return fs.WalkDir(efs, srcDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Get relative path from srcDir
+		relPath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dstDir, relPath)
+
+		if d.IsDir() {
+			return os.MkdirAll(dstPath, 0755)
+		}
+
+		data, err := efs.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(dstPath, data, 0644)
+	})
+}
+
 func formatFile(path string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
