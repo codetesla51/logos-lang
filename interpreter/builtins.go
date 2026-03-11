@@ -1229,6 +1229,30 @@ func init() {
 			return &String{Value: string(data)}
 		},
 	}
+	builtins["prettyJson"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("prettyJson() takes 1 argument, got %d", len(args))
+			}
+			raw := objectToJson(args[0])
+			data, err := json.MarshalIndent(raw, "", "  ")
+			if err != nil {
+				return NULL
+			}
+			lines := strings.Split(string(data), "\n")
+			for i, line := range lines {
+				if strings.Contains(line, ":") {
+					parts := strings.SplitN(line, ":", 2)
+					key := parts[0]
+					value := parts[1]
+					key = "\033[32m" + key + "\033[0m"
+					value = "\033[34m" + value + "\033[0m"
+					lines[i] = key + ":" + value
+				}
+			}
+			return &String{Value: strings.Join(lines, "\n")}
+		},
+	}
 
 	// -------------------------
 	// MATH

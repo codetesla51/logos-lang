@@ -409,6 +409,7 @@ func printHelp() {
 }
 
 func main() {
+	fmt.Println("\033[32m" + "hello" + "\033[0m")
 	args := os.Args[1:]
 
 	if len(args) == 0 {
