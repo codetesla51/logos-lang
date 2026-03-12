@@ -1646,11 +1646,13 @@ func init() {
 				return newError("shell() argument must be a string")
 			}
 			cmd := exec.Command("sh", "-c", command.Value)
+
 			output, err := cmd.CombinedOutput()
 			if err != nil {
-				return NULL
+				return errResult("%s", string(output))
 			}
-			return &String{Value: string(output)}
+
+			return okResult(&String{Value: string(output)})
 		},
 	}
 
