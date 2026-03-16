@@ -30,6 +30,9 @@ func (f *Formatter) Format(program *parser.Program) string {
 func (f *Formatter) formatStatement(stmt parser.Statement) string {
 	switch s := stmt.(type) {
 	case *parser.LetStatement:
+		if fn, ok := s.Value.(*parser.FunctionLiteral); ok && fn.Name != "" {
+			return f.tab() + f.formatFunction(fn)
+		}
 		return f.tab() + "let " + s.Name.String() + " = " + f.formatExpression(s.Value)
 	case *parser.ReturnStatement:
 		return f.tab() + "return " + f.formatExpression(s.ReturnValue)
@@ -129,7 +132,11 @@ func (f *Formatter) formatCall(e *parser.CallExpression) string {
 
 func (f *Formatter) formatFunction(e *parser.FunctionLiteral) string {
 	var out strings.Builder
-	out.WriteString("fn(")
+	if e.Name != "" {
+		out.WriteString("fn " + e.Name + "(")
+	} else {
+		out.WriteString("fn(")
+	}
 	for i, p := range e.Parameters {
 		if i > 0 {
 			out.WriteString(", ")

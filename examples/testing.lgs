@@ -112,24 +112,19 @@ suite("std/datetime", fn() {
     assert("datetimeToStr", type(datetimeToStr(now)), "STRING")
 })
 suite("std/log", fn() {
-    assert("LOG_DEBUG value",   LOG_DEBUG,   "DEBUG")
-    assert("LOG_INFO value",    LOG_INFO,    "INFO")
-    assert("LOG_WARN value",    LOG_WARN,    "WARN")
-    assert("LOG_ERROR value",   LOG_ERROR,   "ERROR")
-
-    assert("default log level", _logLevel,  "DEBUG")
+    assert("LOG_DEBUG value", LOG_DEBUG, "DEBUG")
+    assert("LOG_INFO value", LOG_INFO, "INFO")
+    assert("LOG_WARN value", LOG_WARN, "WARN")
+    assert("LOG_ERROR value", LOG_ERROR, "ERROR")
+    assert("default log level", _logLevel, "DEBUG")
     assert("default logToFile", _logToFile, false)
-    assert("default logFile",   _logFile,   "app.log")
-
+    assert("default logFile", _logFile, "app.log")
     logDebug("debug message")
     assert("logDebug runs without error", true, true)
-
     logInfo("info message")
     assert("logInfo runs without error", true, true)
-
     logWarn("warn message")
     assert("logWarn runs without error", true, true)
-
     logError("error message")
     assert("logError runs without error", true, true)
 })

@@ -1,12 +1,9 @@
-// json_config.lgs - Read and manage JSON configuration files
-
 let printBanner = fn() {
     print(colorBold(colorCyan("╔═══════════════════════════╗")))
     print(colorBold(colorCyan("║     Config Manager        ║")))
     print(colorBold(colorCyan("╚═══════════════════════════╝")))
     print("")
 }
-
 let loadConfig = fn(path) {
     let res = fileRead(path)
     if !res.ok {
@@ -19,13 +16,11 @@ let loadConfig = fn(path) {
     }
     return parsed
 }
-
 let saveConfig = fn(path, config) {
     let json = jsonStringify(config)
     let res = fileWrite(path, json)
     return res.ok
 }
-
 let printConfig = fn(config, indent) {
     for pair in config {
         let key = pair[0]
@@ -39,7 +34,6 @@ let printConfig = fn(config, indent) {
         }
     }
 }
-
 let strRepeat = fn(str, n) {
     let result = ""
     let i = 0
@@ -49,16 +43,12 @@ let strRepeat = fn(str, n) {
     }
     return result
 }
-
 printBanner()
-
 let configPath = trim(prompt(colorCyan("Config file path (default: config.json): ")))
 if len(configPath) == 0 {
     configPath = "config.json"
 }
-
 let config = null
-
 if fileExists(configPath) {
     config = loadConfig(configPath)
     if config == null {
@@ -93,25 +83,21 @@ if fileExists(configPath) {
         exit(1)
     }
 }
-
 print("")
 print(colorBold("Current Configuration:"))
 print(colorBold("═══════════════════════════"))
 printConfig(config, 0)
 print(colorBold("═══════════════════════════"))
 print("")
-
 let editing = true
 for editing {
     print(colorCyan("Commands: ") + "get <key>, set <key> <value>, save, quit")
     let input = trim(prompt(colorBold("> ")))
     let parts = split(input, " ")
     let cmd = lower(parts[0])
-
     if cmd == "quit" || cmd == "q" || cmd == "exit" {
         editing = false
     }
-
     if cmd == "save" {
         if saveConfig(configPath, config) {
             print(colorGreen("Config saved to: " + configPath))
@@ -119,7 +105,6 @@ for editing {
             print(colorRed("Failed to save config"))
         }
     }
-
     if cmd == "get" {
         if len(parts) < 2 {
             print(colorRed("Usage: get <key>"))
@@ -137,7 +122,6 @@ for editing {
             }
         }
     }
-
     if cmd == "set" {
         if len(parts) < 3 {
             print(colorRed("Usage: set <key> <value>"))
@@ -161,8 +145,6 @@ for editing {
             print(colorGreen("Set " + key + " = " + value))
         }
     }
-
     print("")
 }
-
 print(colorYellow("Goodbye!"))

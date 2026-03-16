@@ -1,6 +1,3 @@
-// std/testing - Simple testing framework for Logos scripts.
-// Provides assert, suite, and summary for writing and running tests.
-
 let passed = 0
 let failed = 0
 let total = 0

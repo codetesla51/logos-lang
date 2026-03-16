@@ -1,6 +1,3 @@
-// std/time - Date and time utilities.
-// Provides datetime creation, formatting, comparison, arithmetic, and duration calculations.
-
 let datetimeNow = fn() {
     return table{
         "timestamp": timeNow(),

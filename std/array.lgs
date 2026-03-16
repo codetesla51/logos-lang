@@ -1,6 +1,3 @@
-// std/array - Functional array utilities for transforming, filtering, and aggregating arrays.
-// Provides map, filter, reduce, unique, flat, sum, min, max, chunk, indexOf, and more.
-
 let map = fn(arr, func) {
     let result = []
     for item in arr {

@@ -1,6 +1,3 @@
-// std/path - File path manipulation utilities.
-// Provides join, base, dir, ext, clean, isAbs, exists, and withoutExt operations.
-
 let pathJoin = fn(parts) {
     let result = ""
     let i = 0

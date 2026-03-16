@@ -116,6 +116,7 @@ type FunctionLiteral struct {
 	Parameters []*Identifier
 	Body       *BlockStatement
 	IsArrow    bool
+	Name       string
 }
 type CallExpression struct {
 	Token     golexer.Token
@@ -1021,11 +1022,13 @@ func (p *Parser) parseNamedFunction() *LetStatement {
 	fnToken := p.curToken
 	p.nextToken()
 	name := &Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	fn := p.parseFunctionLiteral().(*FunctionLiteral)
+	fn.Name = name.Value
 	p.curToken = fnToken
 	return &LetStatement{
 		Token: fnToken,
 		Name:  name,
-		Value: p.parseFunctionLiteral(),
+		Value: fn,
 	}
 }
 

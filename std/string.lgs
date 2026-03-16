@@ -1,6 +1,3 @@
-// std/string - String manipulation utilities.
-// Provides padding, capitalize, isEmpty, count, reverse, isPalindrome, and repeat.
-
 let strPadStart = fn(str, length, char) {
     for len(str) < length {
         str = char + str
