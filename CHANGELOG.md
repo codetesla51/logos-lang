@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-03-16
+### Added
+- `else if` support in if expressions
+
+### Fixed
+- Parser `synchronize()` now recovers on all statement starters (`for`, `switch`, `spawn`, `use`, `break`, `continue`)
+- Removed misleading duplicate assignment handling in `parseExpressionStatement` (added clarifying comment)
+
 ## [0.2.3] - 2026-03-13
 ### Fixed
 - HTTP builtins now send proper headers
