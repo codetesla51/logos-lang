@@ -626,7 +626,8 @@ func (p *Parser) synchronize() {
 			return
 		}
 		switch p.peekToken.Type {
-		case golexer.LET, golexer.RETURN, golexer.IF, golexer.FN:
+		case golexer.LET, golexer.RETURN, golexer.IF, golexer.FN,
+			golexer.FOR, SWITCH, SPAWN, USE, golexer.BREAK, golexer.CONTINUE:
 			return
 		}
 		p.nextToken()
@@ -814,6 +815,8 @@ func (p *Parser) parseReturnStatment() *ReturnStatement {
 func (p *Parser) parseExpressionStatment() *ExpressionStatement {
 	stmt := &ExpressionStatement{Token: p.curToken}
 	stmt.Expression = p.parseExpression(LOWEST)
+	// Assignment operators (=, +=, -=, *=, /=, %=) have LOWEST precedence so the
+	// Pratt loop in parseExpression never consumes them. i handle them manually here.
 	if p.peekTokenIs(golexer.ASSIGN) || p.peekTokenIs(golexer.PLUS_ASSIGN) || p.peekTokenIs(golexer.MINUS_ASSIGN) || p.peekTokenIs(golexer.MULTIPLY_ASSIGN) || p.peekTokenIs(golexer.DIVIDE_ASSIGN) || p.peekTokenIs(golexer.MODULUS_ASSIGN) {
 		p.nextToken()
 		operator := p.curToken.Literal
@@ -978,9 +981,10 @@ func (p *Parser) parsePrefixExpression() Expression {
 	return expression
 }
 func (p *Parser) parseBoolean() Expression {
-	return &BooleanLiteral{
-		Token: p.curToken,
-		Value: p.curTokenIs(golexer.TRUE),
+	if p.curTokenIs(golexer.TRUE) {
+		return &BooleanLiteral{Token: p.curToken, Value: true}
+	} else {
+		return &BooleanLiteral{Token: p.curToken, Value: false}
 	}
 }
 

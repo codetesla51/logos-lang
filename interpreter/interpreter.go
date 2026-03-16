@@ -298,7 +298,7 @@ func (i *Interpreter) isBuiltinAllowed(name string) bool {
 
 	// Network functions
 	networkFuncs := map[string]bool{
-		"httpGet": true, "httpPost": true, "httpPatch": true, "httpDelete": true,
+		"httpGet": true, "httpPost": true, "httpPatch": true, "httpDelete": true, "httpPut": true,
 	}
 	if !i.Config.AllowNetwork && networkFuncs[name] {
 		return false
