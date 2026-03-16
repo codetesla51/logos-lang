@@ -847,13 +847,26 @@ func (p *Parser) parseIfExpression() *IfExpression {
 		return nil
 	}
 	stmt.Consequence = p.parseBlockStatement()
+
 	if p.peekTokenIs(golexer.ELSE) {
 		p.nextToken()
-		if !p.expectPeek(golexer.LBRACE) {
-			p.synchronize()
-			return nil
+		if p.peekTokenIs(golexer.IF) {
+			p.nextToken()
+			stmt.Alternative = &BlockStatement{
+				Token:      p.curToken,
+				Statements: []Statement{&ExpressionStatement{Token: p.curToken, Expression: p.parseIfExpression()}},
+			}
+			return stmt
+
+		} else {
+			if !p.expectPeek(golexer.LBRACE) {
+				p.synchronize()
+				return nil
+			}
+			stmt.Alternative = p.parseBlockStatement()
+
 		}
-		stmt.Alternative = p.parseBlockStatement()
+
 	}
 	return stmt
 }

@@ -349,6 +349,9 @@ func TestIfExpression(t *testing.T) {
 		{"if (x != y) { x + y }", "if(x != y){(x + y)}"},
 		{"if (a > b) { a } else { b }", "if(a > b){a}else{b}"},
 		{"if (5 > 3) { 5 > 2 }", "if(5 > 3){(5 > 2)}"},
+		{"if (x > 5) { 1 } else if (x == 5) { 2 } else { 3 }", "if(x > 5){1}else{if(x == 5){2}else{3}}"},
+		{"if (x > 5) { 1 } else if (x == 3) { 2 }", "if(x > 5){1}else{if(x == 3){2}}"},
+		{"if (true) { 1 } else if (false) { 2 } else if (true) { 3 }", "iftrue{1}else{iffalse{2}else{iftrue{3}}}"},
 		{"if (true) { if (false) { 1 } else { 2 } }", "iftrue{iffalse{1}else{2}}"},
 	}
 	for _, tt := range tests {
