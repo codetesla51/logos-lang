@@ -1266,9 +1266,9 @@ func init() {
 			}
 			var raw interface{}
 			if err := json.Unmarshal([]byte(str.Value), &raw); err != nil {
-				return NULL
+				return errResult("parseJson Error: %s", err)
 			}
-			return jsonToObject(raw)
+			return okResult(jsonToObject(raw))
 		},
 	}
 
