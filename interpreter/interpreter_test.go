@@ -1071,3 +1071,28 @@ func TestSpawnEval(t *testing.T) {
 		})
 	}
 }
+func TestTernaryExpression(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{"true ? 1 : 2", "1", "ternary true condition"},
+		{"false ? 1 : 2", "2", "ternary false condition"},
+		{"1 < 2 ? \"yes\" : \"no\"", "yes", "ternary with expression condition"},
+		{"1 > 2 ? \"yes\" : \"no\"", "no", "ternary with false expression condition"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := golexer.NewLexer(tc.input)
+			p := parser.NewParser(l)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}

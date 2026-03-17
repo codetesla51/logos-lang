@@ -12,17 +12,18 @@ import (
 // fmt.Printf("CUR: %s | PEEK: %s\n", p.curToken.Literal, p.peekToken.Literal)
 // Operator precedence levels for expression parsing.
 const (
-	_           int = iota
-	LOWEST          // 1 - Empty statement, assignment
-	LOGICAL_OR      // 2 - ||
-	LOGICAL_AND     // 3 - &&
-	EQUALS          // 4 - ==, !=
-	LESSGREATER     // 5 - <, >, <=, >=
-	SUM             // 6 - +, -
-	PRODUCT         // 7 - *, /
-	PREFIX          // 9 - unary -, !
-	CALL            // 11 - function calls
-	DOT             // 12 - member access (e.g., object.property)
+	_           int = iota // 0
+	LOWEST                 // 1
+	TERNARY                // 2  ← just above lowest
+	LOGICAL_OR             // 3
+	LOGICAL_AND            // 4
+	EQUALS                 // 5
+	LESSGREATER            // 6
+	SUM                    // 7
+	PRODUCT                // 8
+	PREFIX                 // 9
+	CALL                   // 10
+	DOT                    // 11
 )
 
 // extra tokens
@@ -194,6 +195,12 @@ type SpawnForInStatement struct {
 	Collection Expression
 	Body       *BlockStatement
 }
+type TenaryExpression struct {
+	Token       golexer.Token
+	Condition   Expression
+	TrueBranch  Expression
+	FalseBranch Expression
+}
 type PrefixParsefn func() Expression
 type InfixParsefn func(Expression) Expression
 
@@ -220,6 +227,7 @@ var precedences = map[golexer.TokenType]int{
 	golexer.LBRACKET:         CALL,
 	golexer.MODULUS:          PRODUCT,
 	golexer.DOT:              DOT,
+	golexer.QUESTION:         TERNARY,
 }
 
 func (p *Program) TokenLiteral() string {
@@ -548,6 +556,19 @@ func (sfi *SpawnForInStatement) String() string {
 	out.WriteString(sfi.Body.String())
 	return out.String()
 }
+func (te *TenaryExpression) expressionNode()      {}
+func (te *TenaryExpression) TokenLiteral() string { return te.Token.Literal }
+func (te *TenaryExpression) String() string {
+	var out strings.Builder
+	out.WriteString("(")
+	out.WriteString(te.Condition.String())
+	out.WriteString(" ? ")
+	out.WriteString(te.TrueBranch.String())
+	out.WriteString(" : ")
+	out.WriteString(te.FalseBranch.String())
+	out.WriteString(")")
+	return out.String()
+}
 
 // Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
@@ -697,6 +718,7 @@ func NewParser(lexer *golexer.Lexer, filename ...string) *Parser {
 	p.registerInfix(golexer.MULTIPLY_ASSIGN, p.parseInfixExpression)
 	p.registerInfix(golexer.DIVIDE_ASSIGN, p.parseInfixExpression)
 	p.registerInfix(golexer.MODULUS_ASSIGN, p.parseInfixExpression)
+	p.registerInfix(golexer.QUESTION, p.parseTenaryExpression)
 	// prefix expressions
 	p.registerPrefix(golexer.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(golexer.BANG, p.parsePrefixExpression)
@@ -1297,4 +1319,16 @@ func (p *Parser) parseSForInStatement() Statement {
 	stmt.Body = p.parseBlockStatement()
 
 	return stmt
+}
+func (p *Parser) parseTenaryExpression(condition Expression) Expression {
+	exp := &TenaryExpression{Token: p.curToken, Condition: condition}
+	p.nextToken()
+	exp.TrueBranch = p.parseExpression(LOWEST)
+	if !p.expectPeek(golexer.COLON) {
+		p.synchronize()
+		return nil
+	}
+	p.nextToken()
+	exp.FalseBranch = p.parseExpression(LOWEST)
+	return exp
 }

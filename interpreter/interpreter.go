@@ -522,6 +522,8 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 		return i.evalSpawnStatment(node, env)
 	case *parser.SpawnForInStatement:
 		return i.evalSpawnForInStatement(node, env)
+	case *parser.TenaryExpression:
+		return i.evalTernary(node, env)
 	default:
 		fmt.Printf("unknown node: %T %+v\n", node, node)
 		return newError("unknown node type %T", node)
@@ -1281,4 +1283,15 @@ func (i *Interpreter) evalSpawnForInStatement(node *parser.SpawnForInStatement, 
 	}
 	wg.Wait()
 	return NULL
+}
+func (i *Interpreter) evalTernary(node *parser.TenaryExpression, env *Environment) Object {
+	condition := i.Eval(node.Condition, env)
+	if isError(condition) {
+		return condition
+	}
+	if isTruthy(condition) {
+		return i.Eval(node.TrueBranch, env)
+	} else {
+		return i.Eval(node.FalseBranch, env)
+	}
 }
