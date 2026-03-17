@@ -841,6 +841,11 @@ func TestForInStatements(t *testing.T) {
 		{"for i in list { for j in i { j; } }", "for i in list {for j in i {j}}"},
 		{"for num in numbers { print(num); }", "for num in numbers {print(num)}"},
 		{"for x in a + b { x; }", "for x in (a + b) {x}"},
+		// test index for TestForInStatements
+		{"for i, item in list { item; }", "for i, item in list {item}"},
+		{"for i, item in getItems() { item; }", "for i, item in getItems() {item}"},
+		{"for i, num in numbers { print(num); }", "for i, num in numbers {print(num)}"},
+		{"for i, x in a + b { x; }", "for i, x in (a + b) {x}"},
 	}
 	for _, tt := range testCases {
 		l := golexer.NewLexer(tt.input)

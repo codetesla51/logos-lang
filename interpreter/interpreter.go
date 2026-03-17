@@ -581,7 +581,23 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 				return i.fileError(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", left.Value)
 			}
 			return val
-
+		case *parser.DotExpression:
+			val := i.Eval(node.Right, env)
+			if isError(val) {
+				return val
+			}
+			obj := i.Eval(left.Left, env)
+			if isError(obj) {
+				return obj
+			}
+			table, ok := obj.(*Table)
+			if !ok {
+				return i.fileError(node.Token.Line, node.Token.Column,
+					"dot assignment only supported on tables, got: %s", obj.Type())
+			}
+			key := fmt.Sprintf("%s:%s", STRING_OBJ, left.Right.Value)
+			table.Pairs[key] = val
+			return val
 		case *parser.ArrayIndexExpression:
 			val := i.Eval(node.Right, env)
 			if isError(val) {
@@ -595,6 +611,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 			if isError(index) {
 				return index
 			}
+
 			switch collection := obj.(type) {
 			case *Array:
 				idx, ok := index.(*Integer)
@@ -610,6 +627,7 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 				key := fmt.Sprintf("%s:%s", index.Type(), index.String())
 				collection.Pairs[key] = val
 				return val
+
 			default:
 				return i.fileError(node.Token.Line, node.Token.Column, "cannot index assign on type: %s", obj.Type())
 			}
@@ -1077,7 +1095,10 @@ func (i *Interpreter) evalForInStatement(node *parser.ForInStatement, env *Envir
 
 	switch obj := iterable.(type) {
 	case *Array:
-		for _, e := range obj.Elements {
+		for idx, e := range obj.Elements {
+			if node.Index != nil {
+				env.Set(node.Index.Value, &Integer{Value: int64(idx)})
+			}
 			env.Set(node.Item.Value, e)
 			result := i.Eval(node.Body, env)
 			if isError(result) {
@@ -1136,18 +1157,24 @@ func (i *Interpreter) evalForInStatement(node *parser.ForInStatement, env *Envir
 func (i *Interpreter) evalTableLiteral(node *parser.TableLiteral, env *Environment) Object {
 	table := &Table{Pairs: make(map[string]Object)}
 	for _, p := range node.Pairs {
-		evaluatedKey := i.Eval(p.Key, env)
-		if isError(evaluatedKey) {
-			return evaluatedKey
+		var key string
+
+		if ident, ok := p.Key.(*parser.Identifier); ok {
+			key = fmt.Sprintf("%s:%s", STRING_OBJ, ident.Value)
+		} else {
+			evaluatedKey := i.Eval(p.Key, env)
+			if isError(evaluatedKey) {
+				return evaluatedKey
+			}
+			key = fmt.Sprintf("%s:%s", evaluatedKey.Type(), evaluatedKey.String())
 		}
+
 		evaluatedValue := i.Eval(p.Value, env)
 		if isError(evaluatedValue) {
 			return evaluatedValue
 		}
-		key := fmt.Sprintf("%s:%s", evaluatedKey.Type(), evaluatedKey.String())
 		table.Pairs[key] = evaluatedValue
 	}
-
 	return table
 }
 

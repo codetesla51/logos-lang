@@ -8,6 +8,8 @@ import (
 	"github.com/codetesla51/golexer/golexer"
 )
 
+// uncomment for debugging stuff comes in handy.
+// fmt.Printf("CUR: %s | PEEK: %s\n", p.curToken.Literal, p.peekToken.Literal)
 // Operator precedence levels for expression parsing.
 const (
 	_           int = iota
@@ -160,6 +162,7 @@ type NullExpression struct {
 type ForInStatement struct {
 	Token      golexer.Token
 	Item       *Identifier
+	Index      *Identifier // Optional index variable for
 	Collection Expression
 	Body       *BlockStatement
 }
@@ -469,6 +472,11 @@ func (fi *ForInStatement) TokenLiteral() string { return fi.Token.Literal }
 func (fi *ForInStatement) String() string {
 	var out strings.Builder
 	out.WriteString("for ")
+	if fi.Index != nil {
+		out.WriteString(fi.Index.String())
+		out.WriteString(", ")
+
+	}
 	out.WriteString(fi.Item.String())
 	out.WriteString(" in ")
 	out.WriteString(fi.Collection.String())
@@ -876,7 +884,8 @@ func (p *Parser) parseForStatement() Statement {
 	stmt := &ForStatement{Token: p.curToken}
 	p.nextToken()
 
-	if p.curTokenIs(golexer.IDENT) && p.peekTokenIs(IN) {
+	if p.curTokenIs(golexer.IDENT) &&
+		(p.peekTokenIs(IN) || p.peekTokenIs(golexer.COMMA)) {
 		return p.parseForInStatement()
 	}
 
@@ -1176,14 +1185,39 @@ func (p *Parser) parseNullExpression() Expression {
 }
 func (p *Parser) parseForInStatement() Statement {
 	stmt := &ForInStatement{Token: p.curToken}
-	stmt.Item = &Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	p.nextToken()
+
+	stmt.Item = &Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	if p.peekTokenIs(golexer.COMMA) {
+		p.nextToken()
+
+		if !p.expectPeek(golexer.IDENT) {
+			return nil
+		}
+
+		stmt.Index = stmt.Item
+		stmt.Item = &Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+	}
+
+	if !p.expectPeek(IN) {
+		p.synchronize()
+		return nil
+	}
+
 	p.nextToken()
 	stmt.Collection = p.parseExpression(LOWEST)
+
 	if !p.expectPeek(golexer.LBRACE) {
 		p.synchronize()
 		return nil
 	}
+
 	stmt.Body = p.parseBlockStatement()
 
 	return stmt
