@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-17
+### Added
+- `toJson` and `prettyJson` now return `{ok, value, error}` result objects for proper error handling
+
+### CI
+- Release workflow now requires CI to pass before running
+
 ## [0.2.4] - 2026-03-16
 ### Added
 - `else if` support in if expressions
