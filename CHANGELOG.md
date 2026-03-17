@@ -8,10 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ## [0.3.1] - 2026-03-17
 ### Added
-- `i` to for in loops for index access
+- Dot access on table literals now works correctly (keys stored as strings)
+- Index variable support in `for in` statements (`for i, v in col {}`)
+
 ### Fixed
-- `args` now starts at index 2
--  `dot notation` now properly handles non-string keys
+- Table literal keys defined as bare identifiers are now treated as string keys instead of environment lookups
+- Dot assignment (`table.field = value`) now correctly mutates table fields
+- Built-in args now start at index 2
 ## [0.3.0] - 2026-03-17
 ### Added
 - `toJson` and `prettyJson` now return `{ok, value, error}` result objects for proper error handling
