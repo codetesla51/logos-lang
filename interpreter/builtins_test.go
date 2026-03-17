@@ -484,18 +484,18 @@ func TestJsonBuiltins(t *testing.T) {
 		input    string
 		expected string
 	}{
-		// parseJson
-		{desc: "parseJson string value", input: `let t = parseJson("{\"name\":\"john\"}") t["name"]`, expected: "john"},
-		{desc: "parseJson int value", input: `let t = parseJson("{\"age\":42}") t["age"]`, expected: "42"},
-		{desc: "parseJson bool value", input: `let t = parseJson("{\"ok\":true}") t["ok"]`, expected: "true"},
-		{desc: "parseJson invalid returns null", input: `parseJson("notjson")`, expected: "null"},
-		{desc: "parseJson array", input: `let a = parseJson("[1,2,3]") len(a)`, expected: "3"},
+		// parseJson - returns {ok, value, error}, extract .value
+		{desc: "parseJson string value", input: `let t = parseJson("{\"name\":\"john\"}")["value"] t["name"]`, expected: "john"},
+		{desc: "parseJson int value", input: `let t = parseJson("{\"age\":42}")["value"] t["age"]`, expected: "42"},
+		{desc: "parseJson bool value", input: `let t = parseJson("{\"ok\":true}")["value"] t["ok"]`, expected: "true"},
+		{desc: "parseJson invalid returns null", input: `parseJson("notjson")["value"]`, expected: "null"},
+		{desc: "parseJson array", input: `let a = parseJson("[1,2,3]")["value"] len(a)`, expected: "3"},
 
-		// toJson
-		{desc: "toJson int", input: `toJson(42)`, expected: "42"},
-		{desc: "toJson string", input: `toJson("hello")`, expected: `"hello"`},
-		{desc: "toJson bool", input: `toJson(true)`, expected: "true"},
-		{desc: "toJson array", input: `toJson([1, 2, 3])`, expected: "[1,2,3]"},
+		// toJson - returns {ok, value, error}, extract .value
+		{desc: "toJson int", input: `toJson(42)["value"]`, expected: "42"},
+		{desc: "toJson string", input: `toJson("hello")["value"]`, expected: `"hello"`},
+		{desc: "toJson bool", input: `toJson(true)["value"]`, expected: "true"},
+		{desc: "toJson array", input: `toJson([1, 2, 3])["value"]`, expected: "[1,2,3]"},
 	}
 
 	for _, tc := range testCases {
