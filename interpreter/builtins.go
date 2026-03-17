@@ -1272,7 +1272,7 @@ func init() {
 		},
 	}
 
-	// toJson(value) - converts a value to a JSON string, returns null on failure
+	// toJson(value) - converts a value to a JSON string, returns {ok, value, error}
 	builtins["toJson"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -1281,11 +1281,12 @@ func init() {
 			raw := objectToJson(args[0])
 			data, err := json.Marshal(raw)
 			if err != nil {
-				return NULL
+				return errResult("toJson() failed: %s", err.Error())
 			}
-			return &String{Value: string(data)}
+			return okResult(&String{Value: string(data)})
 		},
 	}
+	// prettyJson(value) - converts a value to pretty-printed JSON, returns {ok, value, error}
 	builtins["prettyJson"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
@@ -1294,7 +1295,7 @@ func init() {
 			raw := objectToJson(args[0])
 			data, err := json.MarshalIndent(raw, "", "  ")
 			if err != nil {
-				return NULL
+				return errResult("prettyJson() failed: %s", err.Error())
 			}
 			lines := strings.Split(string(data), "\n")
 			for i, line := range lines {
@@ -1307,7 +1308,7 @@ func init() {
 					lines[i] = key + ":" + value
 				}
 			}
-			return &String{Value: strings.Join(lines, "\n")}
+			return okResult(&String{Value: strings.Join(lines, "\n")})
 		},
 	}
 

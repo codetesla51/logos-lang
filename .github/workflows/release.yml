@@ -11,6 +11,7 @@ on:
 
 jobs:
   release:
+    needs: test-and-build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,7 +30,7 @@ jobs:
           # distribution can be 'goreleaser' (default) or 'goreleaser-pro'
           distribution: goreleaser
           # use GoReleaser v2 series; you can pin a specific version like 'v0.192.0'
-          version: '~> v2'
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
