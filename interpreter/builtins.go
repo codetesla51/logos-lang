@@ -1629,9 +1629,9 @@ func init() {
 			cmd := exec.Command(command.Value, cmdArgs...)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
-				return NULL
+				return errResult("%s", string(output))
 			}
-			return &String{Value: string(output)}
+			return okResult(&String{Value: string(output)})
 		},
 	}
 
