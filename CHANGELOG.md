@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ## [0.3.2] - 2026-03-17
+## [0.3.2] - 2026-03-17
 ### Added
-- `?` operator for ternary expressions
+- Ternary operator (`condition ? trueBranch : falseBranch`)
+- Support for nested and chained ternary expressions
+### Fixed
+- Added `?` token to golexer, was previously emitted as `ILLEGAL`
 ## [0.3.1] - 2026-03-17
 ### Added
 - Dot access on table literals now works correctly (keys stored as strings)
