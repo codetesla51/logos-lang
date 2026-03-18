@@ -526,6 +526,8 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 		return i.evalTernary(node, env)
 	case *parser.InterpolatedString:
 		return i.evalInterpol(node, env)
+	case *parser.TryExpression:
+		return i.evalTry(node, env)
 	default:
 		fmt.Printf("unknown node: %T %+v\n", node, node)
 		return newError("unknown node type %T", node)
@@ -1308,4 +1310,26 @@ func (i *Interpreter) evalInterpol(node *parser.InterpolatedString, env *Environ
 		result.WriteString(val.String())
 	}
 	return &String{Value: result.String()}
+}
+func (i *Interpreter) evalTry(node *parser.TryExpression, env *Environment) Object {
+	res := i.Eval(node.Right, env)
+	if isError(res) {
+		return res
+	}
+	table, ok := res.(*Table)
+	if !ok {
+		return res
+	}
+	okVal, exists := table.Pairs["STRING:ok"]
+	if !exists {
+		return res
+	}
+	if okVal == FALSE {
+		return &ReturnValue{Value: table}
+	}
+	val, exists := table.Pairs["STRING:value"]
+	if !exists {
+		return NULL
+	}
+	return val
 }

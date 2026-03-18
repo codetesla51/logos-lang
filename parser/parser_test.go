@@ -1421,3 +1421,28 @@ func TestInterpolation(t *testing.T) {
 		})
 	}
 }
+func TestTryExp(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"let result = try riskyFunction()", "let result = try riskyFunction();"},
+		{"try riskyFunction()", "try riskyFunction()"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			l := golexer.NewLexer(tc.input)
+			p := NewParser(l)
+			program := p.Parse()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
+			}
+			if program == nil {
+				t.Fatalf("input=%q: Parse() returned nil", tc.input)
+			}
+			if tc.expected != program.String() {
+				t.Fatalf("input=%q: expected=%q, got=%q", tc.input, tc.expected, program.String())
+			}
+		})
+	}
+}

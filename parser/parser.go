@@ -201,6 +201,10 @@ type TenaryExpression struct {
 	TrueBranch  Expression
 	FalseBranch Expression
 }
+type TryExpression struct {
+	Token golexer.Token
+	Right Expression
+}
 
 type InterpolatedString struct {
 	Token golexer.Token
@@ -587,6 +591,11 @@ func (is *InterpolatedString) String() string {
 	}
 	return out.String()
 }
+func (t *TryExpression) expressionNode()      {}
+func (t *TryExpression) TokenLiteral() string { return t.Token.Literal }
+func (t *TryExpression) String() string {
+	return "try " + t.Right.String()
+}
 
 // Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
@@ -750,6 +759,7 @@ func NewParser(lexer *golexer.Lexer, filename ...string) *Parser {
 	p.registerPrefix(golexer.STRING_PART, p.parseInterpolatedString)
 	p.registerPrefix(golexer.TRUE, p.parseBoolean)
 	p.registerPrefix(golexer.FALSE, p.parseBoolean)
+	p.registerPrefix(golexer.TRY, p.parserTryExpression)
 
 	// if expressions
 	p.registerPrefix(golexer.IF, func() Expression { return p.parseIfExpression() })
@@ -1423,4 +1433,11 @@ func (p *Parser) parseInterpolatedString() Expression {
 	}
 
 	return node
+}
+func (p *Parser) parserTryExpression() Expression {
+	exp := &TryExpression{Token: p.curToken}
+	p.nextToken()
+	exp.Right = p.parseExpression(LOWEST)
+	return exp
+
 }
