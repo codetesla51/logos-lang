@@ -228,6 +228,8 @@ var precedences = map[golexer.TokenType]int{
 	golexer.MODULUS:          PRODUCT,
 	golexer.DOT:              DOT,
 	golexer.QUESTION:         TERNARY,
+	golexer.INCREMENT:        CALL,
+	golexer.DECREMENT:        CALL,
 }
 
 func (p *Program) TokenLiteral() string {
@@ -719,13 +721,16 @@ func NewParser(lexer *golexer.Lexer, filename ...string) *Parser {
 	p.registerInfix(golexer.DIVIDE_ASSIGN, p.parseInfixExpression)
 	p.registerInfix(golexer.MODULUS_ASSIGN, p.parseInfixExpression)
 	p.registerInfix(golexer.QUESTION, p.parseTenaryExpression)
+	p.registerInfix(golexer.INCREMENT, p.parseIncrementExpression)
+	p.registerInfix(golexer.DECREMENT, p.parseDecrementression)
+
 	// prefix expressions
 	p.registerPrefix(golexer.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(golexer.BANG, p.parsePrefixExpression)
 	p.registerPrefix(golexer.STRING, p.parserStringLiteral)
 	p.registerPrefix(golexer.BACKTICK_STRING, p.parserStringLiteral)
 	p.registerPrefix(golexer.NULL, p.parseNullExpression)
-	// boolean literals
+
 	p.registerPrefix(golexer.TRUE, p.parseBoolean)
 	p.registerPrefix(golexer.FALSE, p.parseBoolean)
 
@@ -1331,4 +1336,22 @@ func (p *Parser) parseTenaryExpression(condition Expression) Expression {
 	p.nextToken()
 	exp.FalseBranch = p.parseExpression(LOWEST)
 	return exp
+}
+func (p *Parser) parseIncrementExpression(left Expression) Expression {
+	fmt.Printf("CUR: %s | PEEK: %s\n", p.curToken.Literal, p.peekToken.Literal)
+
+	return &InfixExpression{
+		Token:    p.curToken,
+		Operator: "+=",
+		Left:     left,
+		Right:    &IntegerLiteral{Token: golexer.Token{Type: golexer.NUMBER, Literal: "1"}, Value: 1},
+	}
+}
+func (p *Parser) parseDecrementression(left Expression) Expression {
+	return &InfixExpression{
+		Token:    p.curToken,
+		Operator: "-=",
+		Left:     left,
+		Right:    &IntegerLiteral{Token: golexer.Token{Type: golexer.NUMBER, Literal: "1"}, Value: 1},
+	}
 }

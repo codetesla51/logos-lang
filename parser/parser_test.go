@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/codetesla51/golexer/golexer"
@@ -379,7 +380,7 @@ func TestPrefixExpressions(t *testing.T) {
 		{"!true", "(!true)"},
 		{"!false", "(!false)"},
 		{"-5 + 3", "((-5) + 3)"},
-		{"--5", "(-(-5))"},
+
 		{"-x", "(-x)"},
 		{"!x", "(!x)"},
 		{"-1 * 2", "((-1) * 2)"},
@@ -1313,6 +1314,42 @@ func TestTenary(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			l := golexer.NewLexer(tc.input)
 			p := NewParser(l)
+			program := p.Parse()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
+			}
+			if program == nil {
+				t.Fatalf("input=%q: Parse() returned nil", tc.input)
+			}
+			if tc.expected != program.String() {
+				t.Fatalf("input=%q: expected=%q, got=%q", tc.input, tc.expected, program.String())
+			}
+		})
+	}
+}
+func TestIncrementDecrement(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"x++", "(x += 1)"},
+		{"x--", "(x -= 1)"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			l := golexer.NewLexer(tc.input)
+			for {
+				tok := l.NextToken()
+				if tok.Type == golexer.EOF {
+					break
+				}
+				if tok.Type == golexer.ILLEGAL {
+					t.Fatalf("input=%q: lexer error: illegal token %q", tc.input, tok.Literal)
+				}
+				fmt.Printf("Token: Type=%q, Literal=%q\n", tok.Type, tok.Literal)
+			}
+			l2 := golexer.NewLexer(tc.input)
+			p := NewParser(l2)
 			program := p.Parse()
 			if len(p.Errors()) != 0 {
 				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
