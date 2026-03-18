@@ -1365,8 +1365,6 @@ func (p *Parser) parseTenaryExpression(condition Expression) Expression {
 	return exp
 }
 func (p *Parser) parseIncrementExpression(left Expression) Expression {
-	fmt.Printf("CUR: %s | PEEK: %s\n", p.curToken.Literal, p.peekToken.Literal)
-
 	return &InfixExpression{
 		Token:    p.curToken,
 		Operator: "+=",
