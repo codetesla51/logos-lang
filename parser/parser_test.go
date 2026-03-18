@@ -1,12 +1,22 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/codetesla51/golexer/golexer"
 )
 
+// this might come in handing for finding lexer bugs
+//
+//	l2 := golexer.NewLexer(tc.input)
+//
+//	for {
+//		tok := l2.NextToken()
+//		fmt.Printf("Type: %s | Literal: %s\n", tok.Type, tok.Literal)
+//		if tok.Type == golexer.EOF {
+//			break
+//		}
+//	}
 func TestParser(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -1359,18 +1369,44 @@ func TestPipe(t *testing.T) {
 		expected string
 	}{
 		{"x |> f", "f(x)"},
+		{"x |> f |> g", "g(f(x))"},
+		{"x |> f |> g |> h", "h(g(f(x)))"},
+		{"x |> f(a) |> g(b) |> h(c)", "h(g(f(x, a), b), c)"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
 			l := golexer.NewLexer(tc.input)
-			l2 := golexer.NewLexer(tc.input)
-			for {
-				tok := l2.NextToken()
-				fmt.Printf("Type: %s | Literal: %s\n", tok.Type, tok.Literal)
-				if tok.Type == golexer.EOF {
-					break
-				}
+			p := NewParser(l)
+			program := p.Parse()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
 			}
+			if program == nil {
+				t.Fatalf("input=%q: Parse() returned nil", tc.input)
+			}
+			if tc.expected != program.String() {
+				t.Fatalf("input=%q: expected=%q, got=%q", tc.input, tc.expected, program.String())
+			}
+		})
+	}
+}
+func TestInterpolation(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"\"hello ${name}\"", "\"hello \"name"},
+		{"\"result is ${1 + 2}\"", "\"result is \"(1 + 2)"},
+		{"\"${a} and ${b}\"", "\"\"a\" and \"b"},
+		{"\"hello world\"", "\"hello world\""},
+		{"\"${name} is here\"", "\"\"name\" is here\""},
+		{"\"${upper(name)}\"", "\"\"upper(name)"},
+		{"\"${name}\"", "\"\"name"},
+		{"\"${1 + 2 + 3}\"", "\"\"((1 + 2) + 3)"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			l := golexer.NewLexer(tc.input)
 			p := NewParser(l)
 			program := p.Parse()
 			if len(p.Errors()) != 0 {

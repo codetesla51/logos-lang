@@ -201,6 +201,11 @@ type TenaryExpression struct {
 	TrueBranch  Expression
 	FalseBranch Expression
 }
+
+type InterpolatedString struct {
+	Token golexer.Token
+	Parts []Expression
+}
 type PrefixParsefn func() Expression
 type InfixParsefn func(Expression) Expression
 
@@ -573,6 +578,16 @@ func (te *TenaryExpression) String() string {
 	return out.String()
 }
 
+func (is *InterpolatedString) expressionNode()      {}
+func (is *InterpolatedString) TokenLiteral() string { return is.Token.Literal }
+func (is *InterpolatedString) String() string {
+	var out strings.Builder
+	for _, p := range is.Parts {
+		out.WriteString(p.String())
+	}
+	return out.String()
+}
+
 // Parser implements a Pratt parser for parsing tokens into an AST.
 type Parser struct {
 	lexer    *golexer.Lexer
@@ -732,7 +747,7 @@ func NewParser(lexer *golexer.Lexer, filename ...string) *Parser {
 	p.registerPrefix(golexer.STRING, p.parserStringLiteral)
 	p.registerPrefix(golexer.BACKTICK_STRING, p.parserStringLiteral)
 	p.registerPrefix(golexer.NULL, p.parseNullExpression)
-
+	p.registerPrefix(golexer.STRING_PART, p.parseInterpolatedString)
 	p.registerPrefix(golexer.TRUE, p.parseBoolean)
 	p.registerPrefix(golexer.FALSE, p.parseBoolean)
 
@@ -1374,4 +1389,38 @@ func (p *Parser) parsePipeExpression(left Expression) Expression {
 			Arguments: []Expression{left},
 		}
 	}
+}
+func (p *Parser) parseInterpolatedString() Expression {
+	node := &InterpolatedString{Token: p.curToken}
+
+	for {
+		node.Parts = append(node.Parts, &StringLiteral{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		})
+		if p.peekTokenIs(golexer.STRING_PART) {
+			p.nextToken()
+			continue
+		}
+		peek := p.peekToken.Type
+		if peek == golexer.RPAREN || peek == golexer.RBRACKET ||
+			peek == golexer.RBRACE || peek == golexer.EOF ||
+			peek == golexer.SEMICOLON || peek == golexer.INTERP_END {
+			break
+		}
+
+		p.nextToken()
+		node.Parts = append(node.Parts, p.parseExpression(LOWEST))
+		if p.peekTokenIs(golexer.INTERP_END) {
+			p.nextToken()
+
+		}
+		if p.peekTokenIs(golexer.STRING_PART) {
+			p.nextToken()
+			continue
+		}
+		break
+	}
+
+	return node
 }

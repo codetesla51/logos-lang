@@ -524,6 +524,8 @@ func (i *Interpreter) Eval(node parser.Node, env *Environment) Object {
 		return i.evalSpawnForInStatement(node, env)
 	case *parser.TenaryExpression:
 		return i.evalTernary(node, env)
+	case *parser.InterpolatedString:
+		return i.evalInterpol(node, env)
 	default:
 		fmt.Printf("unknown node: %T %+v\n", node, node)
 		return newError("unknown node type %T", node)
@@ -1294,4 +1296,16 @@ func (i *Interpreter) evalTernary(node *parser.TenaryExpression, env *Environmen
 	} else {
 		return i.Eval(node.FalseBranch, env)
 	}
+}
+
+func (i *Interpreter) evalInterpol(node *parser.InterpolatedString, env *Environment) Object {
+	var result strings.Builder
+	for _, part := range node.Parts {
+		val := i.Eval(part, env)
+		if isError(val) {
+			return val
+		}
+		result.WriteString(val.String())
+	}
+	return &String{Value: result.String()}
 }

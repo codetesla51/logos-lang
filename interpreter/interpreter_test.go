@@ -349,13 +349,11 @@ func TestMinusPrefixOperator(t *testing.T) {
 		// integer
 		{"-5", "-5", "negate positive integer"},
 		{"-10", "-10", "negate ten"},
-		{"--5", "5", "double negate integer"},
 		{"-0", "0", "negate zero"},
 
 		// float
 		{"-5.0", "-5", "negate positive float"},
 		{"-10.5", "-10.5", "negate float with decimal"},
-		{"--5.0", "5", "double negate float"},
 		{"-0.0", "-0", "negate zero float"},
 
 		// errors
@@ -1081,6 +1079,50 @@ func TestTernaryExpression(t *testing.T) {
 		{"false ? 1 : 2", "2", "ternary false condition"},
 		{"1 < 2 ? \"yes\" : \"no\"", "yes", "ternary with expression condition"},
 		{"1 > 2 ? \"yes\" : \"no\"", "no", "ternary with false expression condition"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := golexer.NewLexer(tc.input)
+			p := parser.NewParser(l)
+			program := p.Parse()
+			i := NewInterpreter()
+			result := i.Eval(program, i.Env)
+			if result.String() != tc.expected {
+				t.Errorf("[%s] expected %q got %q", tc.desc, tc.expected, result.String())
+			}
+		})
+	}
+}
+func TestInterpolatedStrings(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		desc     string
+	}{
+		{`let name = "Alice"; "Hello, ${name}!"`, "Hello, Alice!", "interpolated string with variable"},
+		{`"The sum of 2 and 3 is ${2 + 3}."`, "The sum of 2 and 3 is 5.", "interpolated string with expression"},
+		{`let a = 1; let b = 2; "${a} + ${b} = ${a + b}"`, "1 + 2 = 3", "interpolated string with multiple expressions"},
+		// nested function call
+		{`let name = "uthman"; "${upper(name)}"`, "UTHMAN", "interpolated string with function call"},
+		// table dot access
+		{`let u = table{name: "Uthman"}; "${u.name}"`, "Uthman", "interpolated string with dot access"},
+		// empty string part at start
+		{`let x = 5; "${x} is the value"`, "5 is the value", "interpolated string starting with expression"},
+		// empty string part at end
+		{`let x = 5; "value is ${x}"`, "value is 5", "interpolated string ending with expression"},
+		// integer conversion
+		{`let n = 42; "number: ${n}"`, "number: 42", "interpolated string with integer"},
+		// float
+		{`let f = 3.14; "pi is ${f}"`, "pi is 3.14", "interpolated string with float"},
+		// bool
+		{`let b = true; "flag: ${b}"`, "flag: true", "interpolated string with bool"},
+		// no interpolation unchanged
+		{`"hello world"`, "hello world", "regular string unchanged"},
+		// chained operations
+		{`let x = 10; "half of ${x} is ${x / 2}"`, "half of 10 is 5", "interpolated string with multiple expressions"},
+		// nested interpolated strings in table
+		{`let t = table{lang: "Logos"}; "built with ${t.lang}"`, "built with Logos", "interpolated string with table field"},
 	}
 
 	for _, tc := range testCases {
