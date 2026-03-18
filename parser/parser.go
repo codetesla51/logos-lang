@@ -230,6 +230,7 @@ var precedences = map[golexer.TokenType]int{
 	golexer.QUESTION:         TERNARY,
 	golexer.INCREMENT:        CALL,
 	golexer.DECREMENT:        CALL,
+	golexer.PIPE:             SUM,
 }
 
 func (p *Program) TokenLiteral() string {
@@ -723,6 +724,7 @@ func NewParser(lexer *golexer.Lexer, filename ...string) *Parser {
 	p.registerInfix(golexer.QUESTION, p.parseTenaryExpression)
 	p.registerInfix(golexer.INCREMENT, p.parseIncrementExpression)
 	p.registerInfix(golexer.DECREMENT, p.parseDecrementression)
+	p.registerInfix(golexer.PIPE, p.parsePipeExpression)
 
 	// prefix expressions
 	p.registerPrefix(golexer.MINUS, p.parsePrefixExpression)
@@ -1353,5 +1355,23 @@ func (p *Parser) parseDecrementression(left Expression) Expression {
 		Operator: "-=",
 		Left:     left,
 		Right:    &IntegerLiteral{Token: golexer.Token{Type: golexer.NUMBER, Literal: "1"}, Value: 1},
+	}
+}
+func (p *Parser) parsePipeExpression(left Expression) Expression {
+	p.nextToken()
+	right := p.parseExpression(SUM)
+	switch fn := right.(type) {
+	// x |> fn(args)  =>  fn(x, args)
+	case *CallExpression:
+		fn.Arguments = append([]Expression{left}, fn.Arguments...)
+		return fn
+	default:
+		// bare function name with no call parens — wrap it
+		// x |> fn  =>  fn(x)
+		return &CallExpression{
+			Token:     p.curToken,
+			Function:  right,
+			Arguments: []Expression{left},
+		}
 	}
 }
