@@ -10,11 +10,8 @@ let loadTodos = fn() {
     if !fileExists(todoFile) {
         return []
     }
-    let res = fileRead(todoFile)
-    if !res.ok {
-        return []
-    }
-    let parsed = jsonParse(res.value)
+    let content = try fileRead(todoFile)
+    let parsed = jsonParse(content)
     if parsed == null {
         return []
     }
@@ -49,8 +46,8 @@ let listTodos = fn() {
         if todo["priority"] == "medium" {
             priority = colorYellow(" ~")
         }
-        print("  " + toStr(i + 1) + ". " + status + " " + taskText + priority)
-        i = i + 1
+        print("  ${toStr(i + 1)}. ${status} ${taskText}${priority}")
+        i++
     }
 }
 let addTodo = fn(task, priority) {
@@ -62,7 +59,7 @@ let addTodo = fn(task, priority) {
     }
     todos = push(todos, todo)
     saveTodos()
-    print(colorGreen("Added: " + task))
+    print(colorGreen("Added: ${task}"))
 }
 let completeTodo = fn(index) {
     if index < 1 || index > len(todos) {
@@ -73,7 +70,7 @@ let completeTodo = fn(index) {
     todo["done"] = true
     todos[index - 1] = todo
     saveTodos()
-    print(colorGreen("Completed: " + todo["task"]))
+    print(colorGreen("Completed: ${todo["task"]}"))
 }
 let deleteTodo = fn(index) {
     if index < 1 || index > len(todos) {
@@ -87,11 +84,11 @@ let deleteTodo = fn(index) {
         if i != index - 1 {
             newTodos = push(newTodos, todos[i])
         }
-        i = i + 1
+        i++
     }
     todos = newTodos
     saveTodos()
-    print(colorRed("Deleted: " + task))
+    print(colorRed("Deleted: ${task}"))
 }
 let clearCompleted = fn() {
     let newTodos = []
@@ -100,12 +97,12 @@ let clearCompleted = fn() {
         if !todo["done"] {
             newTodos = push(newTodos, todo)
         } else {
-            cleared = cleared + 1
+            cleared++
         }
     }
     todos = newTodos
     saveTodos()
-    print(colorGreen("Cleared " + toStr(cleared) + " completed todo(s)"))
+    print(colorGreen("Cleared ${toStr(cleared)} completed todo(s)"))
 }
 let showStats = fn() {
     let total = len(todos)
@@ -114,20 +111,19 @@ let showStats = fn() {
     let high = 0
     for todo in todos {
         if todo["done"] {
-            done = done + 1
+            done++
         } else {
-            pending = pending + 1
+            pending++
         }
         if todo["priority"] == "high" && !todo["done"] {
-            high = high + 1
+            high++
         }
     }
     print(colorBold("Stats:"))
-    print("  Total:    " + toStr(total))
-    print("  " + colorGreen("Done:     " + toStr(done)))
-    print("  " + colorYellow("Pending:  " + toStr(pending)))
+    print("  " + colorGreen("Done:     ${toStr(done)}"))
+    print("  " + colorYellow("Pending:  ${toStr(pending)}"))
     if high > 0 {
-        print("  " + colorRed("High priority: " + toStr(high)))
+        print("  " + colorRed("High priority: ${toStr(high)}"))
     }
 }
 let showHelp = fn() {
@@ -144,7 +140,7 @@ let showHelp = fn() {
 }
 printBanner()
 todos = loadTodos()
-print(colorGreen("Loaded " + toStr(len(todos)) + " todo(s)"))
+print(colorGreen("Loaded ${toStr(len(todos))} todo(s)"))
 print("")
 showHelp()
 print("")

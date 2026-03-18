@@ -10,16 +10,16 @@ let attempts = 0
 let maxAttempts = 7
 let won = false
 print(colorCyan("I picked a number between 1 and 100"))
-print(colorYellow("You have " + toStr(maxAttempts) + " attempts"))
+print(colorYellow("You have ${toStr(maxAttempts)} attempts"))
 print("")
 for attempts < maxAttempts {
-    let raw = prompt(colorBold("Guess #" + toStr(attempts + 1) + ": "))
+    let raw = prompt(colorBold("Guess #${toStr(attempts + 1)}: "))
     let guess = toInt(trim(raw))
     if guess == null {
         print(colorRed("Please enter a valid number"))
         continue
     }
-    attempts = attempts + 1
+    attempts++
     if guess == secret {
         won = true
         break
@@ -32,14 +32,14 @@ for attempts < maxAttempts {
     }
     let remaining = maxAttempts - attempts
     if remaining > 0 {
-        print(colorCyan(toStr(remaining) + " attempts left"))
+        print(colorCyan("${toStr(remaining)} attempts left"))
     }
     print("")
 }
 print("")
 if won {
-    print(colorGreen("🎉 Correct! The number was " + toStr(secret)))
-    print(colorGreen("You got it in " + toStr(attempts) + " attempts!"))
+    print(colorGreen("Correct! The number was ${toStr(secret)}"))
+    print(colorGreen("You got it in ${toStr(attempts)} attempts!"))
 } else {
-    print(colorRed("Game over! The number was " + toStr(secret)))
+    print(colorRed("Game over! The number was ${toStr(secret)}"))
 }

@@ -13,14 +13,14 @@ let countLines = fn(content) {
     let code = 0
     for line in lines {
         let trimmed = trim(line)
-        total = total + 1
+        total++
         if len(trimmed) == 0 {
-            blank = blank + 1
+            blank++
         } else {
             if startsWith(trimmed, "#") || startsWith(trimmed, "//") {
-                comments = comments + 1
+                comments++
             } else {
-                code = code + 1
+                code++
             }
         }
     }
@@ -35,7 +35,7 @@ let countLines = fn(content) {
 let processFile = fn(path) {
     let res = fileRead(path)
     if !res.ok {
-        print(colorRed("Could not read: " + path))
+        print(colorRed("Could not read: ${path}"))
         return null
     }
     return countLines(res.value)
@@ -43,7 +43,7 @@ let processFile = fn(path) {
 printBanner()
 let target = trim(prompt(colorCyan("File or directory: ")))
 if !fileExists(target) {
-    print(colorRed("Error: path does not exist: " + target))
+    print(colorRed("Error: path does not exist: ${target}"))
     exit(1)
 }
 let ext = trim(prompt(colorCyan("File extension to count (e.g. lgs, py, js): ")))
@@ -58,7 +58,7 @@ let dirRes = fileReadDir(target)
 if !dirRes.ok {
     let stats = processFile(target)
     if stats != null {
-        print(colorBold("File: ") + target)
+print(colorBold("File: ${target}"))
         print(colorGreen("Total:    ") + toStr(stats["total"]))
         print(colorCyan("Code:     ") + toStr(stats["code"]))
         print(colorYellow("Blank:    ") + toStr(stats["blank"]))
@@ -68,23 +68,22 @@ if !dirRes.ok {
 }
 for file in dirRes.value {
     if endsWith(file, ext) {
-        let path = target + "/" + file
+        let path = "${target}/${file}"
         let stats = processFile(path)
         if stats != null {
-            print(colorCyan("  • ") + file + colorYellow(" (" + toStr(stats["total"]) + " lines)"))
+            print(colorCyan("  • ${file}") + colorYellow(" (${toStr(stats["total"])} lines)"))
             totalLines = totalLines + stats["total"]
             totalBlank = totalBlank + stats["blank"]
             totalComments = totalComments + stats["comments"]
             totalCode = totalCode + stats["code"]
-            fileCount = fileCount + 1
+            fileCount++
         }
     }
 }
-print("")
 print(colorBold("═══════════════════════════"))
-print(colorBold("Files:    ") + toStr(fileCount))
-print(colorGreen("Total:    ") + toStr(totalLines))
-print(colorCyan("Code:     ") + toStr(totalCode))
-print(colorYellow("Blank:    ") + toStr(totalBlank))
-print(colorMagenta("Comments: ") + toStr(totalComments))
+print(colorBold("Files:    ${toStr(fileCount)}"))
+print(colorGreen("Total:    ${toStr(totalLines)}"))
+print(colorCyan("Code:     ${toStr(totalCode)}"))
+print(colorYellow("Blank:    ${toStr(totalBlank)}"))
+print(colorMagenta("Comments: ${toStr(totalComments)}"))
 print(colorBold("═══════════════════════════"))

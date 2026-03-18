@@ -25,10 +25,10 @@ let parseInterval = fn(raw) {
 }
 let runJob = fn(name, command) {
     let timestamp = dateTimeStr()
-    print(colorCyan("[" + timestamp + "] ") + colorBold("Running: ") + colorYellow(name))
+    print(colorCyan("[${timestamp}] ") + colorBold("Running: ") + colorYellow(name))
     let result = shell(command)
     if result == null {
-        print(colorRed("  ✗ Failed: " + name))
+        print(colorRed("  ✗ Failed: ${name}"))
         return false
     }
     let lines = split(trim(result), "
@@ -36,17 +36,14 @@ let runJob = fn(name, command) {
     for line in lines {
         print(colorWhite("  │ ") + line)
     }
-    print(colorGreen("  ✓ Done: " + name))
+    print(colorGreen("  ✓ Done: ${name}"))
     print("")
     return true
 }
 let loadJobs = fn(path) {
-    let res = fileRead(path)
-    if !res.ok {
-        return null
-    }
+    let content = try fileRead(path)
     let jobs = []
-    let lines = split(res.value, "
+    let lines = split(content, "
 ")
     for line in lines {
         let trimmed = trim(line)
@@ -58,7 +55,7 @@ let loadJobs = fn(path) {
         }
         let parts = split(trimmed, "|")
         if len(parts) != 3 {
-            print(colorYellow("Skipping invalid job line: " + trimmed))
+        print(colorYellow("Skipping invalid job line: ${trimmed}"))
             continue
         }
         let job = table{
@@ -89,35 +86,31 @@ if !fileExists(jobFile) {
 ping | 10s | echo pong
 time | 30s | date
 "
-    let writeRes = fileWrite(jobFile, example)
-    if !writeRes.ok {
-        print(colorRed("Failed to create jobs file: " + writeRes.error))
-        exit(1)
-    }
-    print(colorGreen("Created: " + jobFile))
+    let writeRes = try fileWrite(jobFile, example)
+    print(colorGreen("Created: ${jobFile}"))
     print(colorYellow("Edit it and restart. Exiting."))
     exit(0)
 }
 let jobs = loadJobs(jobFile)
 if jobs == null {
-    print(colorRed("Failed to load jobs from: " + jobFile))
+    print(colorRed("Failed to load jobs from: ${jobFile}"))
     exit(1)
 }
 if len(jobs) == 0 {
-    print(colorRed("No valid jobs found in: " + jobFile))
+    print(colorRed("No valid jobs found in: ${jobFile}"))
     exit(1)
 }
 print("")
-print(colorBold("Loaded " + toStr(len(jobs)) + " job(s):"))
+print(colorBold("Loaded ${toStr(len(jobs))} job(s):"))
 print("")
 let timers = []
 for job in jobs {
     let ms = parseInterval(job["interval"])
     if ms == null {
-        print(colorRed("  ✗ Invalid interval for: " + job["name"] + " (" + job["interval"] + ")"))
+        print(colorRed("  ✗ Invalid interval for: ${job["name"]} (${job["interval"]})"))
         continue
     }
-    print(colorGreen("  ✓ ") + colorBold(job["name"]) + colorCyan(" every " + job["interval"]) + " → " + job["command"])
+        print(colorGreen("  ✓ ") + colorBold(job["name"]) + colorCyan(" every ${job["interval"]}") + " → ${job["command"]}")
     let timer = table{
         "name": job["name"],
         "command": job["command"],
@@ -157,7 +150,7 @@ for true {
             }
             timers = newTimers
         }
-        i = i + 1
+        i++
     }
     sleep(1000)
 }

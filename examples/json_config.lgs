@@ -5,13 +5,10 @@ let printBanner = fn() {
     print("")
 }
 let loadConfig = fn(path) {
-    let res = fileRead(path)
-    if !res.ok {
-        return null
-    }
-    let parsed = jsonParse(res.value)
+    let content = try fileRead(path)
+    let parsed = jsonParse(content)
     if parsed == null {
-        print(colorRed("Error: invalid JSON in " + path))
+        print(colorRed("Error: invalid JSON in ${path}"))
         return null
     }
     return parsed
@@ -30,7 +27,7 @@ let printConfig = fn(config, indent) {
             print(prefix + colorCyan(key) + ":")
             printConfig(value, indent + 1)
         } else {
-            print(prefix + colorCyan(key) + ": " + colorYellow(toStr(value)))
+            print(prefix + colorCyan("${key}: ${toStr(value)}"))
         }
     }
 }
@@ -39,7 +36,7 @@ let strRepeat = fn(str, n) {
     let i = 0
     for i < n {
         result = result + str
-        i = i + 1
+        i++
     }
     return result
 }
@@ -55,7 +52,7 @@ if fileExists(configPath) {
         print(colorRed("Failed to load config"))
         exit(1)
     }
-    print(colorGreen("Loaded config from: " + configPath))
+    print(colorGreen("Loaded config from: ${configPath}"))
 } else {
     print(colorYellow("Config file not found. Creating default..."))
     config = table{
@@ -77,7 +74,7 @@ if fileExists(configPath) {
         },
     }
     if saveConfig(configPath, config) {
-        print(colorGreen("Created: " + configPath))
+        print(colorGreen("Created: ${configPath}"))
     } else {
         print(colorRed("Failed to create config file"))
         exit(1)
@@ -100,7 +97,7 @@ for editing {
     }
     if cmd == "save" {
         if saveConfig(configPath, config) {
-            print(colorGreen("Config saved to: " + configPath))
+            print(colorGreen("Config saved to: ${configPath}"))
         } else {
             print(colorRed("Failed to save config"))
         }
@@ -118,7 +115,7 @@ for editing {
                     print(colorYellow(toStr(value)))
                 }
             } else {
-                print(colorRed("Key not found: " + key))
+                print(colorRed("Key not found: ${key}"))
             }
         }
     }
@@ -142,7 +139,7 @@ for editing {
                     }
                 }
             }
-            print(colorGreen("Set " + key + " = " + value))
+            print(colorGreen("Set ${key} = ${value}"))
         }
     }
     print("")

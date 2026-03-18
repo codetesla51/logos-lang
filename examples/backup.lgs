@@ -5,27 +5,19 @@ let printBanner = fn() {
     print("")
 }
 let confirm = fn(message) {
-    let ans = prompt(colorYellow(message + " (y/n): "))
+    let ans = prompt("${message} (y/n): " |> colorYellow)
     return lower(trim(ans)) == "y"
 }
 let copyDir = fn(src, dst) {
-    let mkRes = fileMkdir(dst)
-    if !mkRes.ok {
-        print(colorRed("Failed to create: " + dst))
-        return false
-    }
-    let dirRes = fileReadDir(src)
-    if !dirRes.ok {
-        print(colorRed("Failed to read: " + src))
-        return false
-    }
+    let mkRes = try fileMkdir(dst)
+    let dirRes = try fileReadDir(src)
     let copied = 0
     for entry in dirRes.value {
-        let srcPath = src + "/" + entry
-        let dstPath = dst + "/" + entry
+        let srcPath = "${src}/${entry}"
+        let dstPath = "${dst}/${entry}"
         let copyRes = fileCopy(srcPath, dstPath)
         if copyRes.ok {
-            copied = copied + 1
+            copied++
         }
     }
     return copied
@@ -33,7 +25,7 @@ let copyDir = fn(src, dst) {
 printBanner()
 let sourceDir = trim(prompt(colorCyan("Source directory: ")))
 if !fileExists(sourceDir) {
-    print(colorRed("Error: source does not exist: " + sourceDir))
+    print(colorRed("Error: source does not exist: ${sourceDir}"))
     exit(1)
 }
 let backupRoot = trim(prompt(colorCyan("Backup destination: ")))
@@ -46,10 +38,10 @@ if !fileExists(backupRoot) {
     fileMkdir(backupRoot)
 }
 let timestamp = replace(replace(dateTimeStr(), " ", "_"), ":", "-")
-let backupName = "backup_" + timestamp
-let backupPath = backupRoot + "/" + backupName
+let backupName = "backup_${timestamp}"
+let backupPath = "${backupRoot}/${backupName}"
 print("")
-print(colorCyan("Backup path: ") + backupPath)
+print(colorCyan("Backup path: ${backupPath}"))
 print("")
 let go = confirm("Start backup?")
 if !go {
@@ -62,8 +54,8 @@ let copied = copyDir(sourceDir, backupPath)
 print("")
 print(colorBold("═══════════════════════════"))
 if copied {
-    print(colorGreen("Backup complete: ") + backupPath)
-    print(colorGreen("Files copied: ") + toStr(copied))
+    print(colorGreen("Backup complete: ${backupPath}"))
+    print(colorGreen("Files copied: ${toStr(copied)}"))
 } else {
     print(colorRed("Backup failed"))
 }

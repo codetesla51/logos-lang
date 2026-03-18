@@ -6,12 +6,9 @@ let printBanner = fn() {
 }
 let searchFiles = fn(dir, pattern, searchText) {
     let results = []
-    let dirRes = fileReadDir(dir)
-    if !dirRes.ok {
-        return results
-    }
-    for entry in dirRes.value {
-        let path = dir + "/" + entry
+    let entries = try fileReadDir(dir)
+    for entry in entries {
+        let path = "${dir}/${entry}"
         if contains(lower(entry), lower(pattern)) {
             if len(searchText) == 0 {
                 results = push(results, table{
@@ -20,9 +17,8 @@ let searchFiles = fn(dir, pattern, searchText) {
                     "line": 0,
                 })
             } else {
-                let fileRes = fileRead(path)
-                if fileRes.ok {
-                    let lines = split(fileRes.value, "
+                let content = try fileRead(path)
+                    let lines = split(content, "
 ")
                     let lineNum = 1
                     for line in lines {
@@ -33,7 +29,7 @@ let searchFiles = fn(dir, pattern, searchText) {
                                 "line": lineNum,
                             })
                         }
-                        lineNum = lineNum + 1
+                        lineNum++
                     }
                 }
             }
@@ -44,7 +40,7 @@ let searchFiles = fn(dir, pattern, searchText) {
 printBanner()
 let dir = trim(prompt(colorCyan("Directory to search: ")))
 if !fileExists(dir) {
-    print(colorRed("Error: directory does not exist: " + dir))
+    print(colorRed("Error: directory does not exist: ${dir}"))
     exit(1)
 }
 let pattern = trim(prompt(colorCyan("Filename pattern (e.g. .lgs, config): ")))
@@ -61,14 +57,14 @@ if len(results) == 0 {
     print(colorYellow("No matches found"))
     exit(0)
 }
-print(colorBold("Found " + toStr(len(results)) + " match(es):"))
+print(colorBold("Found ${toStr(len(results))} match(es):"))
 print("")
 for result in results {
     if result["line"] > 0 {
-        print(colorGreen("  " + result["path"]) + colorCyan(":") + colorYellow(toStr(result["line"])))
-        print(colorWhite("    " + result["match"]))
+        print(colorGreen("  ${result["path"]}") + colorCyan(":") + colorYellow(toStr(result["line"])))
+        print(colorWhite("    ${result["match"]}"))
     } else {
-        print(colorGreen("  " + result["path"]))
+        print(colorGreen("  ${result["path"]}"))
     }
 }
 print("")
