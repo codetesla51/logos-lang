@@ -4,57 +4,73 @@
 
 <h1 align="center">Logos</h1>
 
-Logos (from Greek, meaning word, reason, or logic) is a scripting language designed to be read and understood, not deciphered.
+<p align="center">
+  <em>Scripts that read like thoughts.</em>
+</p>
 
-It's what you reach for when Bash becomes unreadable after line three. A CLI-first language built for the kind of work Bash handles poorly: readable logic, proper error handling, and code you can come back to a week later and still understand.
+<p align="center">
+  <a href="https://logos-lang.vercel.app/docs">Docs</a> ·
+  <a href="https://logos-lang.vercel.app">Website</a> ·
+  <a href="https://github.com/codetesla51/logos/releases">Releases</a>
+</p>
 
-```logos
-let res = httpGet("https://api.example.com/data")
+---
 
-if res.ok {
-    let data = parseJson(res.value.body)
-    print(data["message"])
-} else {
-    print("Error: " + res.error)
+Logos (from Greek — *word, reason, logic*) is a scripting language built for clarity. A CLI-first language with readable syntax, proper error handling, and code you can come back to a week later and still understand.
+```js
+use "std/array"
+
+let devs = [
+  table{name: "Alice", lang: "Go", years: 2},
+  table{name: "Bob",   lang: "Python", years: 1},
+  table{name: "Carol", lang: "Go", years: 3},
+]
+
+let results = devs
+  |> filter(fn(d) -> d.lang == "Go")
+  |> map(fn(d) -> "${d.name} — ${d.years} yrs")
+
+for i, dev in results {
+  i++
+  print("  ${i}. ${dev}")
 }
 ```
 
 ## Highlights
 
-- Readable, C-like syntax that favors clarity
-- Result-based error handling: functions return `{ok, value, error}` instead of throwing
-- Built-in HTTP, JSON, and file I/O primitives
-- Lightweight concurrency with `spawn` blocks
-- Embeddable in Go via `github.com/codetesla51/logos/logos`
-- Scripts use the `.lgs` extension
-- Can be compiled into a standalone binary using `lgs build`
+- **Readable syntax** — C-like, favors clarity over cleverness
+- **String interpolation** — `"hello ${name}"` built in
+- **Pipe operator** — chain transforms with `|>`
+- **Result-based errors** — `{ok, value, error}` instead of exceptions
+- **Try expression** — propagate errors without boilerplate
+- **Built-in HTTP, JSON, file I/O** — batteries included
+- **Concurrency** — lightweight `spawn` blocks
+- **Compile to binary** — `lgs build script.lgs` produces a standalone executable
+- **Embeddable** — drop into any Go project via `github.com/codetesla51/logos/logos`
 
 ## Install
-
-Recommended (installer hosted in this repo):
-
 ```sh
 curl -fsSL https://raw.githubusercontent.com/codetesla51/logos/main/install.sh | sh
 ```
 
-This downloads the installer from the repository and picks the correct release asset for your OS/arch. Works on Linux and macOS.
+Works on Linux and macOS. Picks the correct binary for your OS and architecture automatically.
 
 ## Quick Start
-
 ```sh
 lgs script.lgs        # run a script
-lgs                   # start REPL
+lgs                   # start the REPL
 lgs fmt script.lgs    # format code
 lgs build script.lgs  # compile to a standalone binary
+lgs --help            # show all commands
 ```
 
 ## Docs
 
-Full documentation and the landing page are available at https://logos-lang.vercel.app/ (docs at https://logos-lang.vercel.app/docs).
+Full documentation at [logos-lang.vercel.app/docs](https://logos-lang.vercel.app/docs)
 
 ## Contributing
 
-Contributions are welcome. If you'd like to add examples, standard library utilities, or help with releases, open an issue or a PR on GitHub: https://github.com/codetesla51/logos
+Contributions are welcome — examples, stdlib utilities, bug fixes, or docs improvements. Open an issue or PR on [GitHub](https://github.com/codetesla51/logos).
 
 ## License
 
