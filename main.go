@@ -44,6 +44,8 @@ func eval(input string, inter *interpreter.Interpreter) interpreter.Object {
 var stdModules = map[string]bool{
 	"array": true, "log": true, "math": true, "path": true,
 	"string": true, "testing": true, "time": true, "type": true,
+	"std/array": true, "std/log": true, "std/math": true, "std/path": true,
+	"std/string": true, "std/testing": true, "std/time": true, "std/type": true,
 }
 
 // findUserModules scans source code for use statements and returns non-std module names
@@ -124,7 +126,7 @@ func buildFile(path string) {
 go 1.21
 
 require (
-    github.com/codetesla51/golexer v1.0.7
+    github.com/codetesla51/golexer v1.1.2
     github.com/codetesla51/logos v%s
 )
 `, VERSION)
