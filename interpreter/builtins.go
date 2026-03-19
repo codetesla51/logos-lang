@@ -937,9 +937,63 @@ func init() {
 			}
 		},
 	}
+	//alias "int" to "toInt" for convenience
+	builtins["int"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("toInt() takes 1 argument, got %d", len(args))
+			}
+			switch arg := args[0].(type) {
+			case *Integer:
+				return arg
+			case *Float:
+				return &Integer{Value: int64(arg.Value)}
+			case *Bool:
+				if arg.Value {
+					return &Integer{Value: 1}
+				}
+				return &Integer{Value: 0}
+			case *String:
+				n, err := strconv.ParseInt(arg.Value, 10, 64)
+				if err != nil {
+					return NULL
+				}
+				return &Integer{Value: n}
+			default:
+				return NULL
+			}
+		},
+	}
 
 	// toFloat(value) - converts a value to a float, returns null on failure
 	builtins["toFloat"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("toFloat() takes 1 argument, got %d", len(args))
+			}
+			switch arg := args[0].(type) {
+			case *Float:
+				return arg
+			case *Integer:
+				return &Float{Value: float64(arg.Value)}
+			case *Bool:
+				if arg.Value {
+					return &Float{Value: 1.0}
+				}
+				return &Float{Value: 0.0}
+			case *String:
+				n, err := strconv.ParseFloat(arg.Value, 64)
+				if err != nil {
+					return NULL
+				}
+				return &Float{Value: n}
+			default:
+				return NULL
+			}
+		},
+	}
+	// alias "float" to "toFloat" for convenience
+	builtins["float"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
 				return newError("toFloat() takes 1 argument, got %d", len(args))
@@ -997,9 +1051,49 @@ func init() {
 			}
 		},
 	}
+	// alias "bool" to "toBool" for convenience
+	builtins["bool"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("toBool() takes 1 argument, got %d", len(args))
+			}
+			switch arg := args[0].(type) {
+			case *Bool:
+				return arg
+			case *Integer:
+				if arg.Value != 0 {
+					return TRUE
+				}
+				return FALSE
+			case *Float:
+				if arg.Value != 0.0 {
+					return TRUE
+				}
+				return FALSE
+			case *String:
+				if arg.Value == "true" {
+					return TRUE
+				} else if arg.Value == "false" {
+					return FALSE
+				}
+				return NULL
+			default:
+				return NULL
+			}
+		},
+	}
 
 	// toStr(value) - converts any value to its string representation
 	builtins["toStr"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 1 {
+				return newError("toStr() takes 1 argument, got %d", len(args))
+			}
+			return &String{Value: args[0].String()}
+		},
+	}
+	// alias "str" to "toStr" for convenience
+	builtins["str"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 1 {
 				return newError("toStr() takes 1 argument, got %d", len(args))
