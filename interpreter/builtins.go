@@ -1584,12 +1584,16 @@ func init() {
 			if len(args) != 0 {
 				return newError("args() takes no arguments, got %d", len(args))
 			}
-			osArgs := os.Args[2:] // skip program name and script name
-			items := make([]Object, len(osArgs))
-			for i, arg := range osArgs {
-				items[i] = &String{Value: arg}
+			if len(os.Args) <= 2 {
+				return &Array{Elements: []Object{}}
+			} else {
+				osArgs := os.Args[2:] // skip program name and script name
+				items := make([]Object, len(osArgs))
+				for i, arg := range osArgs {
+					items[i] = &String{Value: arg}
+				}
+				return &Array{Elements: items}
 			}
-			return &Array{Elements: items}
 		},
 	}
 
