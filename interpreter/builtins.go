@@ -41,6 +41,23 @@ func errResult(msg string, args ...interface{}) Object {
 		"STRING:error": &String{Value: fmt.Sprintf(msg, args...)},
 	}}
 }
+func formatTable(t *Table, indent int) string {
+	var out strings.Builder
+	prefix := strings.Repeat("  ", indent)
+	out.WriteString("{\n")
+	for k, val := range t.Pairs {
+		cleanKey := strings.TrimPrefix(k, "STRING:")
+		out.WriteString(prefix + "  " + cleanKey + ": ")
+		switch v := val.(type) {
+		case *Table:
+			out.WriteString(formatTable(v, indent+1))
+		default:
+			out.WriteString(val.String() + "\n")
+		}
+	}
+	out.WriteString(prefix + "}\n")
+	return out.String()
+}
 
 func init() {
 
@@ -56,8 +73,14 @@ func init() {
 				if i > 0 {
 					out.WriteString(" ")
 				}
-				out.WriteString(arg.String())
+				switch v := arg.(type) {
+				case *Table:
+					out.WriteString(formatTable(v, 0))
+				default:
+					out.WriteString(v.String())
+				}
 			}
+
 			fmt.Println(out.String())
 			return NULL
 		},
@@ -1555,6 +1578,7 @@ func init() {
 	}
 
 	// args() - returns command line arguments as an array of strings
+	// todo safGaurd slice
 	builtins["args"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			if len(args) != 0 {
