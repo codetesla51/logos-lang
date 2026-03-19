@@ -19,7 +19,7 @@ let loadTodos = fn() {
 }
 let saveTodos = fn() {
     let json = toJson(todos)
-    let res = fileWrite(todoFile, json)
+    let res = fileWrite(todoFile, str(json))
     return res.ok
 }
 let listTodos = fn() {
@@ -154,29 +154,25 @@ for running {
     let cmd = lower(parts[0])
     if cmd == "quit" || cmd == "q" || cmd == "exit" {
         running = false
-    }
-    if cmd == "list" || cmd == "ls" {
+    } else if cmd == "list" || cmd == "ls" {
         print("")
         listTodos()
         print("")
-    }
-    if cmd == "add" {
+    } else if cmd == "add" {
         if len(parts) < 2 {
             print(colorRed("Usage: add <task>"))
         } else {
             let task = join(slice(parts, 1, len(parts)), " ")
             addTodo(task, "normal")
         }
-    }
-    if cmd == "add!" {
+    } else if cmd == "add!" {
         if len(parts) < 2 {
             print(colorRed("Usage: add! <task>"))
         } else {
             let task = join(slice(parts, 1, len(parts)), " ")
             addTodo(task, "high")
         }
-    }
-    if cmd == "done" {
+    } else if cmd == "done" {
         if len(parts) < 2 {
             print(colorRed("Usage: done <number>"))
         } else {
@@ -187,8 +183,7 @@ for running {
                 completeTodo(index)
             }
         }
-    }
-    if cmd == "del" || cmd == "delete" || cmd == "rm" {
+    } else if cmd == "del" || cmd == "delete" || cmd == "rm" {
         if len(parts) < 2 {
             print(colorRed("Usage: del <number>"))
         } else {
@@ -199,16 +194,13 @@ for running {
                 deleteTodo(index)
             }
         }
-    }
-    if cmd == "clear" {
+    } else if cmd == "clear" {
         clearCompleted()
-    }
-    if cmd == "stats" {
+    } else if cmd == "stats" {
         print("")
         showStats()
         print("")
-    }
-    if cmd == "help" || cmd == "?" {
+    } else if cmd == "help" || cmd == "?" {
         print("")
         showHelp()
         print("")

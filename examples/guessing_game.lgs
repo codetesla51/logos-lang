@@ -23,11 +23,9 @@ for attempts < maxAttempts {
     if guess == secret {
         won = true
         break
-    }
-    if guess < secret {
+    } else if guess < secret {
         print(colorYellow("Too low!"))
-    }
-    if guess > secret {
+    } else {
         print(colorYellow("Too high!"))
     }
     let remaining = maxAttempts - attempts

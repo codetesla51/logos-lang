@@ -94,15 +94,13 @@ for editing {
     let cmd = lower(parts[0])
     if cmd == "quit" || cmd == "q" || cmd == "exit" {
         editing = false
-    }
-    if cmd == "save" {
+    } else if cmd == "save" {
         if saveConfig(configPath, config) {
             print(colorGreen("Config saved to: ${configPath}"))
         } else {
             print(colorRed("Failed to save config"))
         }
-    }
-    if cmd == "get" {
+    } else if cmd == "get" {
         if len(parts) < 2 {
             print(colorRed("Usage: get <key>"))
         } else {
@@ -118,8 +116,7 @@ for editing {
                 print(colorRed("Key not found: ${key}"))
             }
         }
-    }
-    if cmd == "set" {
+    } else if cmd == "set" {
         if len(parts) < 3 {
             print(colorRed("Usage: set <key> <value>"))
         } else {
@@ -128,16 +125,12 @@ for editing {
             let intVal = toInt(value)
             if intVal != null {
                 config[key] = intVal
+            } else if value == "true" {
+                config[key] = true
+            } else if value == "false" {
+                config[key] = false
             } else {
-                if value == "true" {
-                    config[key] = true
-                } else {
-                    if value == "false" {
-                        config[key] = false
-                    } else {
-                        config[key] = value
-                    }
-                }
+                config[key] = value
             }
             print(colorGreen("Set ${key} = ${value}"))
         }

@@ -15,14 +15,12 @@ let countLines = fn(content) {
         let trimmed = trim(line)
         total++
         if len(trimmed) == 0 {
-            blank++
-        } else {
-            if startsWith(trimmed, "#") || startsWith(trimmed, "//") {
-                comments++
-            } else {
-                code++
-            }
-        }
+        blank++
+    } else if startsWith(trimmed, "#") || startsWith(trimmed, "//") {
+        comments++
+    } else {
+        code++
+    }
     }
     let result = table{
         "total": total,

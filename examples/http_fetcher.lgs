@@ -22,8 +22,7 @@ if method == "GET" {
         exit(1)
     }
     printResponse(res)
-}
-if method == "POST" {
+} else if method == "POST" {
     let body = trim(prompt(colorCyan("Body (JSON): ")))
     print(colorYellow("Sending POST ${url}"))
     print("")
@@ -33,8 +32,7 @@ if method == "POST" {
         exit(1)
     }
     printResponse(res)
-}
-if method == "DELETE" {
+} else if method == "DELETE" {
     print(colorYellow("Sending DELETE ${url}"))
     print("")
     let res = httpDelete(url)

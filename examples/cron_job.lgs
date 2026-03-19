@@ -14,14 +14,13 @@ let parseInterval = fn(raw) {
     }
     if unit == "s" {
         return value * 1000
-    }
-    if unit == "m" {
+    } else if unit == "m" {
         return value * 60 * 1000
-    }
-    if unit == "h" {
+    } else if unit == "h" {
         return value * 60 * 60 * 1000
+    } else {
+        return null
     }
-    return null
 }
 let runJob = fn(name, command) {
     let timestamp = dateTimeStr()

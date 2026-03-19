@@ -18,19 +18,18 @@ let searchFiles = fn(dir, pattern, searchText) {
                 })
             } else {
                 let content = try fileRead(path)
-                    let lines = split(content, "
+                let lines = split(content, "
 ")
-                    let lineNum = 1
-                    for line in lines {
-                        if contains(lower(line), lower(searchText)) {
-                            results = push(results, table{
-                                "path": path,
-                                "match": trim(line),
-                                "line": lineNum,
-                            })
-                        }
-                        lineNum++
+                let lineNum = 1
+                for line in lines {
+                    if contains(lower(line), lower(searchText)) {
+                        results = push(results, table{
+                            "path": path,
+                            "match": trim(line),
+                            "line": lineNum,
+                        })
                     }
+                    lineNum++
                 }
             }
         }
