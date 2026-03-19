@@ -1262,6 +1262,44 @@ func init() {
 			return &Array{Elements: newElements}
 		},
 	}
+	builtins["range"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			var step int64 = 1
+			if len(args) < 2 {
+				return newError("range() takes 2 arguments, got %d", len(args))
+			}
+			if len(args) == 3 {
+				stepArg, ok := args[2].(*Integer)
+				if !ok {
+					return newError("range() third argument must be an integer (step)")
+				}
+
+				step = stepArg.Value
+			}
+			if step == 0 {
+				return newError("range() step cannot be 0")
+			}
+			start, ok := args[0].(*Integer)
+			if !ok {
+				return newError("range() first argument must be an integer (start)")
+			}
+			end, ok := args[1].(*Integer)
+			if !ok {
+				return newError("range() second argument must be an integer (end)")
+			}
+			elements := []Object{}
+			if step < 0 {
+				for i := start.Value; i > end.Value; i += step {
+					elements = append(elements, &Integer{Value: i})
+				}
+			} else {
+				for i := start.Value; i < end.Value; i += step {
+					elements = append(elements, &Integer{Value: i})
+				}
+			}
+			return &Array{Elements: elements}
+		},
+	}
 
 	// -------------------------
 	// TABLE OPS
