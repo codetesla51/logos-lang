@@ -1146,12 +1146,24 @@ func init() {
 			newElements := make([]Object, len(arr.Elements))
 			copy(newElements, arr.Elements)
 			sort.Slice(newElements, func(i, j int) bool {
-				a := toFloat64(newElements[i])
-				b := toFloat64(newElements[j])
-				if a == nil || b == nil {
-					return false
+				a := newElements[i]
+				b := newElements[j]
+
+				// both numbers
+				af := toFloat64(a)
+				bf := toFloat64(b)
+				if af != nil && bf != nil {
+					return *af < *bf
 				}
-				return *a < *b
+
+				// both strings
+				as, aok := a.(*String)
+				bs, bok := b.(*String)
+				if aok && bok {
+					return as.Value < bs.Value
+				}
+
+				return false
 			})
 			return &Array{Elements: newElements}
 		},
