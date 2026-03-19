@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -1901,7 +1902,161 @@ func init() {
 			return &String{Value: t.Format(format.Value)}
 		},
 	}
+	// -------------------------
+	// REGEX
+	// -------------------------
+	builtins["reMatch"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 2 {
+				return newError("reMatch() takes 2 arguments, got %d", len(args))
+			}
+			pattern, ok := args[0].(*String)
+			if !ok {
+				return newError("reMatch() first argument must be a string (pattern)")
+			}
+			str, ok := args[1].(*String)
+			if !ok {
+				return newError("reMatch() second argument must be a string")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return newError("reMatch() invalid pattern: %s", err.Error())
+			}
+			return nativeBoolToBooleanObject(re.MatchString(str.Value))
+		},
+	}
 
+	builtins["reFind"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 2 {
+				return newError("reFind() takes 2 arguments, got %d", len(args))
+			}
+			pattern, ok := args[0].(*String)
+			if !ok {
+				return newError("reFind() first argument must be a string (pattern)")
+			}
+			str, ok := args[1].(*String)
+			if !ok {
+				return newError("reFind() second argument must be a string")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return newError("reFind() invalid pattern: %s", err.Error())
+			}
+			match := re.FindString(str.Value)
+			if match == "" {
+				return NULL
+			}
+			return &String{Value: match}
+		},
+	}
+
+	builtins["reFindAll"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 2 {
+				return newError("reFindAll() takes 2 arguments, got %d", len(args))
+			}
+			pattern, ok := args[0].(*String)
+			if !ok {
+				return newError("reFindAll() first argument must be a string (pattern)")
+			}
+			str, ok := args[1].(*String)
+			if !ok {
+				return newError("reFindAll() second argument must be a string")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return newError("reFindAll() invalid pattern: %s", err.Error())
+			}
+			matches := re.FindAllString(str.Value, -1)
+			elements := make([]Object, len(matches))
+			for i, m := range matches {
+				elements[i] = &String{Value: m}
+			}
+			return &Array{Elements: elements}
+		},
+	}
+
+	builtins["reReplace"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 3 {
+				return newError("reReplace() takes 3 arguments, got %d", len(args))
+			}
+			pattern, ok := args[0].(*String)
+			if !ok {
+				return newError("reReplace() first argument must be a string (pattern)")
+			}
+			str, ok := args[1].(*String)
+			if !ok {
+				return newError("reReplace() second argument must be a string")
+			}
+			replacement, ok := args[2].(*String)
+			if !ok {
+				return newError("reReplace() third argument must be a string (replacement)")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return newError("reReplace() invalid pattern: %s", err.Error())
+			}
+			return &String{Value: re.ReplaceAllString(str.Value, replacement.Value)}
+		},
+	}
+
+	builtins["reSplit"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 2 {
+				return newError("reSplit() takes 2 arguments, got %d", len(args))
+			}
+			pattern, ok := args[0].(*String)
+			if !ok {
+				return newError("reSplit() first argument must be a string (pattern)")
+			}
+			str, ok := args[1].(*String)
+			if !ok {
+				return newError("reSplit() second argument must be a string")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return newError("reSplit() invalid pattern: %s", err.Error())
+			}
+			parts := re.Split(str.Value, -1)
+			elements := make([]Object, len(parts))
+			for i, p := range parts {
+				elements[i] = &String{Value: p}
+			}
+			return &Array{Elements: elements}
+		},
+	}
+
+	builtins["reGroups"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			if len(args) != 2 {
+				return newError("reGroups() takes 2 arguments, got %d", len(args))
+			}
+			pattern, ok := args[0].(*String)
+			if !ok {
+				return newError("reGroups() first argument must be a string (pattern)")
+			}
+			str, ok := args[1].(*String)
+			if !ok {
+				return newError("reGroups() second argument must be a string")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return newError("reGroups() invalid pattern: %s", err.Error())
+			}
+			matches := re.FindStringSubmatch(str.Value)
+			if matches == nil {
+				return NULL
+			}
+			// skip index 0 (full match), return only capture groups
+			elements := make([]Object, len(matches)-1)
+			for i, m := range matches[1:] {
+				elements[i] = &String{Value: m}
+			}
+			return &Array{Elements: elements}
+		},
+	}
 	// -------------------------
 	// HTTP
 	// -------------------------
