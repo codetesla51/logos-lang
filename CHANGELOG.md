@@ -4,105 +4,114 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [Unreleased]
+
+## [v0.4.2] - 2026-03-19
+### Added
+- **interpreter**: `const` keyword for immutable bindings — reassignment throws a runtime error
+- **builtins**: `range(start, end, step?)` builtin for numeric iteration with optional step and countdown support
+
+
+### Fixed
+- **builtins**: `sort()` now handles both string and numeric arrays
+- **builtins**: `str()`, `int()`, `float()` added as short aliases for type conversion functions
+## [v0.4.1] - 2026-03-19
+### Fixed
+- **print**: table internals no longer leak into output — nested tables render with proper indentation
+- **sort**: now handles string arrays in addition to numeric arrays
+- **args**: added bounds checking to prevent panic when no arguments are passed
+- **builtins**: added `str()`, `int()`, `float()` as short aliases for type conversion functions
 
 ## [v0.4.0] - 2026-03-18
 ### Added
-- String interpolation with `${}` syntax — embed expressions directly in strings (`"hello ${name}"`)
-- Pipe operator `|>` — chain function calls left to right (`arr |> filter(fn) |> map(fn)`)
-- `try` expression — unwraps result tables and propagates errors up the call stack
-- Postfix increment and decrement operators (`i++`, `i--`)
+- **String interpolation** — embed expressions directly in strings with `${}` syntax (`"hello ${name}"`)
+- **Pipe operator** `|>` — chain function calls left to right (`arr |> filter(fn) |> map(fn)`)
+- **`try` expression** — unwraps result tables and propagates errors, eliminating manual `if !res.ok` boilerplate
+- **Postfix `++`/`--`** — increment and decrement operators (`i++`, `i--`)
 
-### Changed
-- `try` eliminates manual `if !res.ok { return res }` boilerplate in functions that chain fallible operations
-
-## [0.3.2] - 2026-03-17
+## [v0.3.2] - 2026-03-17
 ### Added
-- Ternary operator (`condition ? trueBranch : falseBranch`)
-- Support for nested and chained ternary expressions
+- Ternary operator (`condition ? trueBranch : falseBranch`) with support for nested and chained expressions
 
 ### Fixed
-- Added `?` token to golexer, was previously emitted as `ILLEGAL`
+- `?` token was previously emitted as `ILLEGAL` by golexer — now handled correctly
 
-## [0.3.1] - 2026-03-17
+## [v0.3.1] - 2026-03-17
 ### Added
-- Dot access on table literals now works correctly (keys stored as strings)
-- Index variable support in `for in` statements (`for i, v in col {}`)
+- Index variable support in `for in` loops (`for i, v in col {}`)
+- Dot access on table literals now works correctly
 
 ### Fixed
-- Table literal keys defined as bare identifiers are now treated as string keys instead of environment lookups
-- Dot assignment (`table.field = value`) now correctly mutates table fields
-- Built-in args now start at index 2
+- Table literal keys defined as bare identifiers are now treated as string keys instead of variable lookups
+- Dot assignment (`table.field = value`) now correctly mutates in place
+- `args` builtin now strips the binary and script path — user args start at index 0
 
-## [0.3.0] - 2026-03-17
+## [v0.3.0] - 2026-03-17
 ### Added
 - `toJson` and `prettyJson` now return `{ok, value, error}` result objects for proper error handling
 
 ### CI
 - Release workflow now requires CI to pass before running
 
-## [0.2.4] - 2026-03-16
+## [v0.2.4] - 2026-03-16
 ### Added
-- `else if` support in if expressions
+- `else if` chaining in if expressions
 
 ### Fixed
 - Parser `synchronize()` now recovers on all statement starters (`for`, `switch`, `spawn`, `use`, `break`, `continue`)
 - Removed misleading duplicate assignment handling in `parseExpressionStatement`
 
-## [0.2.3] - 2026-03-13
+## [v0.2.3] - 2026-03-13
 ### Fixed
-- HTTP builtins now send proper headers
+- HTTP builtins now send proper request headers
 
-## [0.2.2] - 2026-03-13
+## [v0.2.2] - 2026-03-13
 ### Fixed
-- Shell errors are no longer swallowed; proper error handling added
+- Shell errors are no longer silently swallowed
 
-## [0.2.1] - 2026-03-13
+## [v0.2.1] - 2026-03-13
 ### Added
-- `confirm` CLI utility for user confirmation prompts
-- `select` CLI utility for interactive selection menus
+- `confirm` — interactive CLI confirmation prompt
+- `select` — interactive CLI selection menu
 
-## [0.2.0] - 2026-03-13
+## [v0.2.0] - 2026-03-13
 ### Added
-- `prettyJson` for nicer JSON formatting
+- `prettyJson` builtin for formatted JSON output
 
-## [0.1.1] - 2026-03-13
+## [v0.1.1] - 2026-03-13
 ### Fixed
-- Build command now uses embedded std files
+- `lgs build` now correctly uses embedded stdlib files
 
-## [0.0.5] - 2026-03-13
+## [v0.0.5] - 2026-03-13
 ### Fixed
-- Corrected goreleaser config for v2 syntax
+- goreleaser config updated for v2 syntax
 
-## [0.0.4] - 2026-03-13
+## [v0.0.4] - 2026-03-13
 ### CI
-- Use goreleaser prebuilt binary for linux runner
+- Use goreleaser prebuilt binary on Linux runner
 
-## [0.0.3] - 2026-03-13
+## [v0.0.3] - 2026-03-13
 ### Fixed
-- Properly handle compound assignment on undeclared variables
+- Compound assignment on undeclared variables now handled correctly
 
-## [0.0.2] - 2026-03-13
+## [v0.0.2] - 2026-03-13
 ### Fixed
-- Removed invalid files entry from archives config
+- Removed invalid `files` entry from goreleaser archives config
 
-## [0.0.1] - 2026-03-13
+## [v0.0.1] - 2026-03-13
 ### Added
-- Initial release of the language interpreter
-- Basic parser with statements
-- If/else blocks and else if chaining
-- For loops and for-in loops with break/continue
-- Functions, arrow functions, and closures
-- Switch statements with default case
-- Tables (hashmaps), arrays, booleans, strings, null
-- `&&` and `||` operators with short-circuit evaluation
-- Compound assignment operators (`+=`, `-=`, `*=`, `/=`, `%=`)
-- Built-in functions for I/O, strings, arrays, math, JSON, HTTP, file I/O, time
-- Color output builtins
-- CLI utilities (`confirm`, `select`, `prompt`)
-- Concurrency with `spawn` blocks and `spawn for-in`
-- Standard library (`std/array`, `std/string`, `std/math`, `std/path`, `std/time`, `std/type`, `std/log`, `std/testing`)
-- Sandbox mode for embedding with configurable capability restrictions
-- Go embedding API (`Register`, `SetVar`, `GetVar`, `Call`, `Run`)
-- Binary compilation via `lgs build`
-- Installer with progress indicator
-- CI/CD with GoReleaser for releases
+- Initial release — full language interpreter with:
+  - Parser, AST, and tree-walking evaluator
+  - If/else, for, for-in, switch, break, continue
+  - Functions, arrow functions, closures
+  - Tables, arrays, strings, booleans, null
+  - `&&`/`||` with short-circuit evaluation
+  - Compound assignment operators (`+=`, `-=`, `*=`, `/=`, `%=`)
+  - Built-in functions for I/O, strings, arrays, math, JSON, HTTP, file I/O, time, color output
+  - CLI utilities (`confirm`, `select`, `prompt`)
+  - Concurrency via `spawn` blocks and `spawn for-in`
+  - Standard library (`std/array`, `std/string`, `std/math`, `std/path`, `std/time`, `std/type`, `std/log`, `std/testing`)
+  - Sandbox mode with configurable capability restrictions
+  - Go embedding API (`Register`, `SetVar`, `GetVar`, `Call`, `Run`)
+  - Binary compilation via `lgs build`
+  - CI/CD with GoReleaser
