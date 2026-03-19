@@ -86,9 +86,10 @@ type BooleanLiteral struct {
 	Value bool
 }
 type LetStatement struct {
-	Token golexer.Token
-	Name  *Identifier
-	Value Expression
+	Token   golexer.Token
+	Name    *Identifier
+	Value   Expression
+	IsConst bool
 }
 type ReturnStatement struct {
 	Token       golexer.Token
@@ -803,6 +804,8 @@ func (p *Parser) parseStatment() Statement {
 	switch p.curToken.Type {
 	case golexer.LET:
 		return p.parseLetStatment()
+	case golexer.CONST:
+		return p.parseLetStatment()
 	case golexer.RETURN:
 		return p.parseReturnStatment()
 	case golexer.FOR:
@@ -845,7 +848,11 @@ func (p *Parser) parseStatment() Statement {
 
 }
 func (p *Parser) parseLetStatment() *LetStatement {
-	stmt := &LetStatement{Token: p.curToken}
+	stmt := &LetStatement{}
+	if p.curTokenIs(golexer.CONST) {
+		stmt.IsConst = true
+	}
+	stmt.Token = p.curToken
 	if !p.expectPeek(golexer.IDENT) {
 		p.synchronize()
 		return nil

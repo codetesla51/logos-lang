@@ -42,8 +42,9 @@ type Object interface {
 	String() string // testing and debugging
 }
 type Environment struct {
-	store map[string]Object
-	outer *Environment
+	store   map[string]Object
+	isConst map[string]bool
+	outer   *Environment
 }
 
 // SandboxConfig controls which built-in capabilities are available to scripts.
@@ -215,7 +216,7 @@ func (t *Table) String() string {
 }
 
 func NewEnvironment() *Environment {
-	return &Environment{store: make(map[string]Object), outer: nil}
+	return &Environment{store: make(map[string]Object), outer: nil, isConst: make(map[string]bool)}
 }
 func NewEnclosedEnvironment(outer *Environment) *Environment {
 	env := NewEnvironment()
@@ -235,6 +236,9 @@ func (e *Environment) Set(name string, val Object) Object {
 }
 func (e *Environment) Update(name string, val Object) Object {
 	if _, ok := e.store[name]; ok {
+		if e.isConst[name] {
+			return newError("cannot reassign const '%s'", name)
+		}
 		e.store[name] = val
 		return val
 	}
@@ -569,6 +573,9 @@ func (i *Interpreter) evalLetStatement(node *parser.LetStatement, env *Environme
 	if isError(val) {
 		return val
 	}
+	if node.IsConst {
+		env.isConst[node.Name.Value] = true
+	}
 	env.Set(node.Name.Value, val)
 	return val
 }
@@ -583,6 +590,9 @@ func (i *Interpreter) evalInfixExpression(node *parser.InfixExpression, env *Env
 				return val
 			}
 			result := env.Update(left.Value, val)
+			if isError(result) {
+				return result
+			}
 			if result == nil {
 				return i.fileError(node.Token.Line, node.Token.Column, "cannot assign to undeclared variable: %s", left.Value)
 			}

@@ -1446,3 +1446,36 @@ func TestTryExp(t *testing.T) {
 		})
 	}
 }
+func TestConstStatement(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+		isConst  bool
+	}{
+		{"const x = 10", "const x = 10;", true},
+		{"let y = 10", "let y = 10;", false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			l := golexer.NewLexer(tc.input)
+			p := NewParser(l)
+			program := p.Parse()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("input=%q: parser has %d errors: %v", tc.input, len(p.Errors()), p.Errors())
+			}
+			if program == nil {
+				t.Fatalf("input=%q: Parse() returned nil", tc.input)
+			}
+			if tc.expected != program.String() {
+				t.Fatalf("input=%q: expected=%q, got=%q", tc.input, tc.expected, program.String())
+			}
+			stmt, ok := program.Statements[0].(*LetStatement)
+			if !ok {
+				t.Fatalf("input=%q: expected *ast.LetStatement, got %T", tc.input, program.Statements[0])
+			}
+			if stmt.IsConst != tc.isConst {
+				t.Fatalf("input=%q: expected IsConst=%v, got %v", tc.input, tc.isConst, stmt.IsConst)
+			}
+		})
+	}
+}
