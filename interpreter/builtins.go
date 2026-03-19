@@ -82,6 +82,25 @@ func init() {
 				}
 			}
 
+			fmt.Print(out.String())
+			return NULL
+		},
+	}
+	builtins["println"] = &Builtin{
+		Fn: func(args ...Object) Object {
+			var out strings.Builder
+			for i, arg := range args {
+				if i > 0 {
+					out.WriteString(" ")
+				}
+				switch v := arg.(type) {
+				case *Table:
+					out.WriteString(formatTable(v, 0))
+				default:
+					out.WriteString(v.String())
+				}
+			}
+
 			fmt.Println(out.String())
 			return NULL
 		},
