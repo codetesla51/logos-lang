@@ -67,7 +67,7 @@ func init() {
 	// -------------------------
 
 	// print(args...) - prints values to stdout separated by spaces
-	builtins["print"] = &Builtin{
+	builtins["printn"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			var out strings.Builder
 			for i, arg := range args {
@@ -86,7 +86,7 @@ func init() {
 			return NULL
 		},
 	}
-	builtins["println"] = &Builtin{
+	builtins["print"] = &Builtin{
 		Fn: func(args ...Object) Object {
 			var out strings.Builder
 			for i, arg := range args {
