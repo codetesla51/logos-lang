@@ -4,6 +4,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [v0.4.5] - 2026-03-20
+
+### Added
+- **builtins**: add changed it to printn for no new line, print remains the same (`299a7f7`)
+
+## [v0.4.4] - 2026-03-20
+
+### Added
+- **builtins**: add println for new line printing made print just regular prints (`fe86934`)
+
 ## [v0.4.3] - 2026-03-19
 
 ### Added
