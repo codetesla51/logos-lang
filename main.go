@@ -21,7 +21,7 @@ import (
 
 const (
 	PROMPT  = ">>> "
-	VERSION = "0.4.0"
+	VERSION = "0.4.5"
 )
 
 //go:embed std
