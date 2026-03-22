@@ -2094,31 +2094,11 @@ func init() {
 				return errResult("httpGet failed to build request: %s", err.Error())
 			}
 			if len(args) == 2 {
-				headers, ok := args[1].(*Table)
-				if !ok {
-					return newError("httpGet() second argument must be a table")
-				}
-				for k, v := range headers.Pairs {
-					key := strings.TrimPrefix(k, "STRING:")
-					if str, ok := v.(*String); ok {
-						req.Header.Set(key, str.Value)
-					}
+				if errObj := applyHeaders(req, args[1], "httpGet"); errObj != nil {
+					return errObj
 				}
 			}
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				return errResult("httpGet failed: %s", err.Error())
-			}
-			defer resp.Body.Close()
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return errResult("httpGet failed to read body: %s", err.Error())
-			}
-			pairs := map[string]Object{}
-			pairs["STRING:body"] = &String{Value: string(body)}
-			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return okResult(&Table{Pairs: pairs})
+			return doRequest(req)
 		},
 	}
 
@@ -2131,41 +2111,21 @@ func init() {
 			if !ok {
 				return newError("httpPost() first argument must be a string")
 			}
-			body, ok := args[1].(*String)
-			if !ok {
-				return newError("httpPost() second argument must be a string")
+			bodyStr, err := bodyToString(args[1])
+			if err != nil {
+				return newError("httpPost() %s", err.Error())
 			}
-			req, err := http.NewRequest("POST", url.Value, strings.NewReader(body.Value))
+			req, err := http.NewRequest("POST", url.Value, strings.NewReader(bodyStr))
 			if err != nil {
 				return errResult("httpPost failed to build request: %s", err.Error())
 			}
 			req.Header.Set("Content-Type", "application/json")
 			if len(args) == 3 {
-				headers, ok := args[2].(*Table)
-				if !ok {
-					return newError("httpPost() third argument must be a table")
-				}
-				for k, v := range headers.Pairs {
-					key := strings.TrimPrefix(k, "STRING:")
-					if str, ok := v.(*String); ok {
-						req.Header.Set(key, str.Value)
-					}
+				if errObj := applyHeaders(req, args[2], "httpPost"); errObj != nil {
+					return errObj
 				}
 			}
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				return errResult("httpPost failed: %s", err.Error())
-			}
-			defer resp.Body.Close()
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return errResult("httpPost failed to read body: %s", err.Error())
-			}
-			pairs := map[string]Object{}
-			pairs["STRING:body"] = &String{Value: string(respBody)}
-			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return okResult(&Table{Pairs: pairs})
+			return doRequest(req)
 		},
 	}
 
@@ -2178,41 +2138,21 @@ func init() {
 			if !ok {
 				return newError("httpPut() first argument must be a string")
 			}
-			body, ok := args[1].(*String)
-			if !ok {
-				return newError("httpPut() second argument must be a string")
+			bodyStr, err := bodyToString(args[1])
+			if err != nil {
+				return newError("httpPut() %s", err.Error())
 			}
-			req, err := http.NewRequest("PUT", url.Value, strings.NewReader(body.Value))
+			req, err := http.NewRequest("PUT", url.Value, strings.NewReader(bodyStr))
 			if err != nil {
 				return errResult("httpPut failed to build request: %s", err.Error())
 			}
 			req.Header.Set("Content-Type", "application/json")
 			if len(args) == 3 {
-				headers, ok := args[2].(*Table)
-				if !ok {
-					return newError("httpPut() third argument must be a table")
-				}
-				for k, v := range headers.Pairs {
-					key := strings.TrimPrefix(k, "STRING:")
-					if str, ok := v.(*String); ok {
-						req.Header.Set(key, str.Value)
-					}
+				if errObj := applyHeaders(req, args[2], "httpPut"); errObj != nil {
+					return errObj
 				}
 			}
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				return errResult("httpPut failed: %s", err.Error())
-			}
-			defer resp.Body.Close()
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return errResult("httpPut failed to read body: %s", err.Error())
-			}
-			pairs := map[string]Object{}
-			pairs["STRING:body"] = &String{Value: string(respBody)}
-			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return okResult(&Table{Pairs: pairs})
+			return doRequest(req)
 		},
 	}
 
@@ -2225,41 +2165,21 @@ func init() {
 			if !ok {
 				return newError("httpPatch() first argument must be a string")
 			}
-			body, ok := args[1].(*String)
-			if !ok {
-				return newError("httpPatch() second argument must be a string")
+			bodyStr, err := bodyToString(args[1])
+			if err != nil {
+				return newError("httpPatch() %s", err.Error())
 			}
-			req, err := http.NewRequest("PATCH", url.Value, strings.NewReader(body.Value))
+			req, err := http.NewRequest("PATCH", url.Value, strings.NewReader(bodyStr))
 			if err != nil {
 				return errResult("httpPatch failed to build request: %s", err.Error())
 			}
 			req.Header.Set("Content-Type", "application/json")
 			if len(args) == 3 {
-				headers, ok := args[2].(*Table)
-				if !ok {
-					return newError("httpPatch() third argument must be a table")
-				}
-				for k, v := range headers.Pairs {
-					key := strings.TrimPrefix(k, "STRING:")
-					if str, ok := v.(*String); ok {
-						req.Header.Set(key, str.Value)
-					}
+				if errObj := applyHeaders(req, args[2], "httpPatch"); errObj != nil {
+					return errObj
 				}
 			}
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				return errResult("httpPatch failed: %s", err.Error())
-			}
-			defer resp.Body.Close()
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return errResult("httpPatch failed to read body: %s", err.Error())
-			}
-			pairs := map[string]Object{}
-			pairs["STRING:body"] = &String{Value: string(respBody)}
-			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return okResult(&Table{Pairs: pairs})
+			return doRequest(req)
 		},
 	}
 
@@ -2277,31 +2197,11 @@ func init() {
 				return errResult("httpDelete failed to build request: %s", err.Error())
 			}
 			if len(args) == 2 {
-				headers, ok := args[1].(*Table)
-				if !ok {
-					return newError("httpDelete() second argument must be a table")
-				}
-				for k, v := range headers.Pairs {
-					key := strings.TrimPrefix(k, "STRING:")
-					if str, ok := v.(*String); ok {
-						req.Header.Set(key, str.Value)
-					}
+				if errObj := applyHeaders(req, args[1], "httpDelete"); errObj != nil {
+					return errObj
 				}
 			}
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			if err != nil {
-				return errResult("httpDelete failed: %s", err.Error())
-			}
-			defer resp.Body.Close()
-			respBody, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return errResult("httpDelete failed to read body: %s", err.Error())
-			}
-			pairs := map[string]Object{}
-			pairs["STRING:body"] = &String{Value: string(respBody)}
-			pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
-			return okResult(&Table{Pairs: pairs})
+			return doRequest(req)
 		},
 	}
 }
@@ -2390,4 +2290,67 @@ func toFloat64(obj Object) *float64 {
 	default:
 		return nil
 	}
+}
+func tableToMap(t *Table) map[string]any {
+	m := map[string]any{}
+	for k, v := range t.Pairs {
+		key := strings.TrimPrefix(k, "STRING:")
+		switch val := v.(type) {
+		case *String:
+			m[key] = val.Value
+		case *Integer:
+			m[key] = val.Value
+		case *Float:
+			m[key] = val.Value
+		case *Bool:
+			m[key] = val.Value
+		}
+	}
+	return m
+}
+
+func bodyToString(arg Object) (string, error) {
+	switch b := arg.(type) {
+	case *String:
+		return b.Value, nil
+	case *Table:
+		jsonBytes, err := json.Marshal(tableToMap(b))
+		if err != nil {
+			return "", err
+		}
+		return string(jsonBytes), nil
+	default:
+		return "", fmt.Errorf("body must be a string or table")
+	}
+}
+
+func applyHeaders(req *http.Request, arg Object, fn string) Object {
+	headers, ok := arg.(*Table)
+	if !ok {
+		return newError("%s() headers argument must be a table", fn)
+	}
+	for k, v := range headers.Pairs {
+		key := strings.TrimPrefix(k, "STRING:")
+		if str, ok := v.(*String); ok {
+			req.Header.Set(key, str.Value)
+		}
+	}
+	return nil
+}
+
+func doRequest(req *http.Request) Object {
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return errResult("%s failed: %s", req.Method, err.Error())
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errResult("%s failed to read body: %s", req.Method, err.Error())
+	}
+	pairs := map[string]Object{}
+	pairs["STRING:body"] = &String{Value: string(respBody)}
+	pairs["STRING:status"] = &Integer{Value: int64(resp.StatusCode)}
+	return okResult(&Table{Pairs: pairs})
 }
